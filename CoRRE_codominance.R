@@ -97,8 +97,8 @@ Cmax <- differenceData%>%
   rename(num_codominants=num_ranks)%>%
   select(exp_unit, Cmax, num_codominants)%>%
   mutate(exp_unit2=exp_unit)%>%
-  separate(exp_unit2, into=c('site_code', 'project_name', 'plot_id', 'trt', 'year'), sep='::')%>%
-  mutate(year=as.integer(year))
+  separate(exp_unit2, into=c('site_code', 'project_name', 'plot_id', 'treatment', 'calendar_year'), sep='::')%>%
+  mutate(calendar_year=as.integer(calendar_year))
 
 codomSppList <- Cmax%>%
   left_join(rankOrder)%>%
@@ -121,9 +121,6 @@ ggplot(data=codomSppList, aes(x=Cmax, y=num_codominants)) +
 
 
 ###what drives codominance?
-
-#fix starting here...
-
 #read in site-level data
 siteData <- read.csv('SiteExperimentDetails_March2019.csv')%>%
   select(-X)%>%
@@ -135,7 +132,7 @@ siteData <- read.csv('SiteExperimentDetails_March2019.csv')%>%
 
 #get site-level average cmax and number of codominants
 CmaxDrivers <- Cmax%>%
-  group_by(site_code, year, trt)%>%
+  group_by(site_code, project_name, calendar_year, treatment)%>%
   summarise(num_codominants=mean(num_codominants), Cmax=mean(Cmax))%>%
   ungroup()%>%
   left_join(siteData)

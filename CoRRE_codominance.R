@@ -19,15 +19,20 @@ theme_update(axis.title.x=element_text(size=40, vjust=-0.35, margin=margin(t=15)
              legend.title=element_blank(), legend.text=element_text(size=20))
 
 ###read in data
+sppNames <- read.csv('corre2trykey.csv')%>%
+  select(genus_species, species_matched)%>%
+  unique()
+
 corre <- read.csv('SpeciesRawAbundance_Nov2019.csv')%>%
   select(-X)%>%
-  left_join(read.csv('corre2trykey.csv'))%>%
-  select(-genus_species)%>%
-  rename(genus_species=species_matched, cover=abundance, plot=plot_id, trt=treatment, year=calendar_year)%>%
-  mutate(exp_unit=paste(site_code, project_name, plot, trt, year, sep='::'))
+  left_join(sppNames)%>%
+  rename(old_name=genus_species, cover=abundance, plot=plot_id, trt=treatment, year=calendar_year)%>%
+  mutate(genus_species=ifelse(is.na(species_matched), as.character(old_name), as.character(species_matched)))%>%
+  mutate(exp_unit=paste(site_code, project_name, plot, trt, year, sep='::'))%>%
+  select(-species_matched, -old_name)
 
-#############################################
-#####calculate Cmax (codominance metric)#####
+#########################################
+###calculate Cmax (codominance metric)###
 
 #calculate relative abundance
 relCover <- corre%>%
@@ -92,7 +97,7 @@ Cmax <- differenceData%>%
   rename(num_codominants=num_ranks)%>%
   select(exp_unit, Cmax, num_codominants)%>%
   mutate(exp_unit2=exp_unit)%>%
-  separate(exp_unit2, into=c('site', 'project_name', 'plot', 'trt', 'year'), sep='::')%>%
+  separate(exp_unit2, into=c('site_code', 'project_name', 'plot_id', 'trt', 'year'), sep='::')%>%
   mutate(year=as.integer(year))
 
 codomSppList <- Cmax%>%
@@ -101,7 +106,7 @@ codomSppList <- Cmax%>%
   filter(rank<=num_codominants)%>%
   ungroup()
 
-#write.csv(codomSppList, 'corre_codominants_list_08242020.csv', row.names=F)
+# write.csv(codomSppList, 'corre_codominants_list_01282021.csv', row.names=F)
 
 #histogram of codom
 ggplot(data=codomSppList, aes(x=num_codominants)) +
@@ -121,20 +126,21 @@ ggplot(data=codomSppList, aes(x=Cmax, y=num_codominants)) +
 
 #read in site-level data
 siteData <- read.csv('SiteExperimentDetails_March2019.csv')%>%
+  select(-X)%>%
   left_join(read.csv('ExperimentInformation_March2019.csv'))%>%
   select(-X)%>%
   # select(site_code, continent, country, region, managed, burned, grazed, anthropogenic, habitat, elevation, latitude, longitude, site_richness, MAT_v2, ANN_TEMP_RANGE_v2, MAP_v2, MAP_VAR_v2, N_Dep, experiment_type, year, year_trt, first_nutrient_year, first_fenced_year, site_native_richness, site_introduced_richness)%>%
   unique()%>%
-  rename(site=site_code, plant_gamma=rrich)
+  rename(plant_gamma=rrich)
 
 #get site-level average cmax and number of codominants
 CmaxDrivers <- Cmax%>%
-  group_by(site, year, trt)%>%
+  group_by(site_code, year, trt)%>%
   summarise(num_codominants=mean(num_codominants), Cmax=mean(Cmax))%>%
   ungroup()%>%
   left_join(siteData)
 
-# write.csv(CmaxDrivers, 'corre_codominance_08242020.csv', row.names=F)
+# write.csv(CmaxDrivers, 'corre_codominance_01282021.csv', row.names=F)
 
 ggplot(data=CmaxDrivers, aes(x=Cmax, y=num_codominants)) +
   geom_point() +

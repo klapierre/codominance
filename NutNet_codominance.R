@@ -12,28 +12,22 @@ library(tidyverse)
 #kim's laptop
 setwd('C:\\Users\\lapie\\Dropbox (Smithsonian)\\working groups\\GEx working groups\\SEV 2019\\codominance\\data\\nutnet')
 
-theme_set(theme_bw())
-theme_update(axis.title.x=element_text(size=40, vjust=-0.35, margin=margin(t=15)), axis.text.x=element_text(size=34, color='black'),
-             axis.title.y=element_text(size=40, angle=90, vjust=0.5, margin=margin(r=15)), axis.text.y=element_text(size=34, color='black'),
-             plot.title = element_text(size=40, vjust=2),
-             panel.grid.major=element_blank(), panel.grid.minor=element_blank(),
-             legend.title=element_blank(), legend.text=element_text(size=20))
-
 ###read in data
-nutnet <- read.csv('full-cover-03-June-2020.csv')%>%
+nutnet <- read.csv('full-cover-07-December-2020.csv')%>%
   rename(cover=max_cover, genus_species=Taxon)%>%
-  mutate(exp_unit=paste(site_code, block, plot, trt, year, sep='::'))%>%
-  filter(!(genus_species %in% c('GROUND', 'OTHER LITTER', 'OTHER ARISTIDA CONTORTA (DEAD)', 'OTHER SALSOLA KALI (DEAD)', 'OTHER TRIODIA BASEDOWII (DEAD)')))
+  filter(live==1, !(genus_species %in% c('GROUND', 'OTHER LITTER', 'OTHER ARISTIDA CONTORTA (DEAD)', 'OTHER SALSOLA KALI (DEAD)', 'OTHER TRIODIA BASEDOWII (DEAD)', 'OTHER ANIMAL DROPPINGS', 'OTHER ROCK', 'OTHER ANIMAL DIGGINGS', 'OTHER WOODY OVERSTORY', 'OTHER STANDING DEAD', 'OTHER ANIMAL DIGGING', 'OTHER SOIL BIOCRUST', 'OTHER WOOD', 'OTHER SHELL', 'DEER')))
 
-#############################################
-#####calculate Cmax (codominance metric)#####
+
+# -----calculate Cmax (codominance metric) - plot-level-----
 
 #calculate relative abundance
 relCover <- nutnet%>%
-  group_by(exp_unit)%>%
+  mutate(exp_unit=paste(site_code, block, plot, trt, year, sep='::'))%>% #group by plot
+  group_by(exp_unit, site_code, block, plot, trt, year)%>%
   summarise(totcov=sum(cover))%>%
   ungroup()%>%
   right_join(nutnet)%>%
+  filter(cover>0)%>%
   mutate(relcov=(cover/totcov)*100)%>%
   select(-cover, -totcov)
 
@@ -41,7 +35,7 @@ evenness <- relCover%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evenness, 'nutnet_richEven_06122020.csv')
+# write.csv(evenness, 'nutnet_richEven_01292021.csv')
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%
@@ -51,7 +45,7 @@ rankOrder <- relCover%>%
 
 ###calculating harmonic means for all subsets of rank orders
 #make a new dataframe with just the label
-expUnit=nutnet%>%
+expUnit=rankOrder%>%
   select(exp_unit)%>%
   unique()
 
@@ -106,41 +100,177 @@ codomSppList <- Cmax%>%
   filter(rank<=num_codominants)%>%
   ungroup()
 
-#write.csv(codomSppList, 'NutNet_codominants_list_06092020.csv', row.names=F)
-
-#histogram of codom
-ggplot(data=subset(codomSppList, year_trt==0), aes(x=num_codominants)) +
-  geom_histogram(color="black", fill="white", binwidth=1) +
-  xlab('Number of Codominant Species') + ylab('Count')
-#export at 1000x800
-
-ggplot(data=subset(codomSppList, year_trt==0), aes(x=Cmax, y=num_codominants)) +
-  geom_point() +
-  xlab('Cmax') + ylab('Number of Codominants')
-#export at 800x800
+# write.csv(codomSppList, 'NutNet_codominants_list_plot_01292021.csv', row.names=F)
 
 
-###what drives codominance?
 
-#read in site-level data
-siteData <- read.csv('comb-by-plot-clim-soil-diversity-03-Jun-2020.csv')%>%
-  select(site_code, continent, country, region, managed, burned, grazed, anthropogenic, habitat, elevation, latitude, longitude, site_richness, MAT_v2, ANN_TEMP_RANGE_v2, MAP_v2, MAP_VAR_v2, N_Dep, experiment_type, year, year_trt, first_nutrient_year, first_fenced_year, site_native_richness, site_introduced_richness)%>%
-  unique()%>%
-  rename(site=site_code, plant_gamma=site_richness, MAT=MAT_v2, temp_range=ANN_TEMP_RANGE_v2, MAP=MAP_v2, precip_cv=MAP_VAR_v2, Ndep=N_Dep)
 
-#get site-level average cmax and number of codominants
-CmaxDrivers <- Cmax%>%
-  group_by(site, year, trt, block)%>%
-  summarise(num_codominants=mean(num_codominants), Cmax=mean(Cmax))%>%
+# -----calculate Cmax (codominance metric) - block-level-----
+
+#calculate relative abundance
+nutnetBlock <- nutnet%>%
+  mutate(exp_unit=paste(site_code, block, trt, year, sep='::'))%>% #regroup by block*trt
+  group_by(exp_unit, genus_species)%>%
+  summarise(cover=sum(cover))%>%
+  ungroup()
+
+relCoverBlock <- nutnetBlock%>%
+  group_by(exp_unit)%>%
+  summarise(totcov=sum(cover))%>%
   ungroup()%>%
-  group_by(site, year, trt)%>%
-  summarise(num_codominants=mean(num_codominants), Cmax=mean(Cmax))%>%
+  right_join(nutnetBlock)%>%
+  filter(cover>0)%>%
+  mutate(relcov=(cover/totcov)*100)%>%
+  select(-cover, -totcov)
+
+
+#generate rank of each species in each plot by relative cover, with rank 1 being most abundant
+rankOrderBlock <- relCoverBlock%>%
+  group_by(exp_unit)%>%
+  mutate(rank = as.numeric(order(order(relcov, decreasing=TRUE))))%>%
+  ungroup()
+
+###calculating harmonic means for all subsets of rank orders
+#make a new dataframe with just the label
+expUnitBlock=relCoverBlock%>%
+  select(exp_unit)%>%
+  unique()
+
+#makes an empty dataframe
+harmonicMeanBlock=data.frame(row.names=1) 
+
+### NOTE: this code takes about 30 mins to run, so use the output in the dropbox unless there is a reason to re-run it
+#calculate harmonic means
+for(i in 1:length(expUnitBlock$exp_unit)) {
+  
+  #creates a dataset for each unique experimental unit
+  subset <- rankOrderBlock[rankOrderBlock$exp_unit==as.character(expUnitBlock$exp_unit[i]),]%>%
+    select(exp_unit, genus_species, relcov, rank)
+  
+  for(j in 1:length(subset$rank)) {
+    
+    #creates a dataset for each series of ranks from 1 through end of the number of ranks
+    subset2 <- subset[subset$rank<=j,]
+    
+    #calculate harmonic mean of values
+    mean <- harmonic.mean(subset2$relcov)
+    meanData <- data.frame(exp_unit=unique(subset2$exp_unit),
+                           num_ranks=j, 
+                           harmonic_mean=mean)
+    
+    harmonicMeanBlock=rbind(meanData, harmonicMeanBlock)
+    
+  }
+  
+}
+
+differenceDataBlock <- harmonicMeanBlock%>%
+  left_join(rankOrderBlock)%>%
+  filter(rank==num_ranks+1)%>% #only keep the next most abundant species after the number that went into the calculation of the harmonic mean
+  mutate(difference=harmonic_mean-relcov) #calculates difference between harmonic mean and the relative cover of the next most abundant species
+
+CmaxBlock <- differenceDataBlock%>%
+  group_by(exp_unit)%>%
+  summarise(Cmax=max(difference))%>%
   ungroup()%>%
-  left_join(siteData)
+  left_join(differenceDataBlock)%>%
+  filter(Cmax==difference)%>%
+  rename(num_codominants=num_ranks)%>%
+  select(exp_unit, Cmax, num_codominants)%>%
+  mutate(exp_unit2=exp_unit)%>%
+  separate(exp_unit2, into=c('site', 'block', 'trt', 'year'), sep='::')%>%
+  mutate(year=as.integer(year), block=as.integer(block))
 
-# write.csv(CmaxDrivers, 'NutNet_codominance_06092020.csv', row.names=F)
+codomSppListBlock <- CmaxBlock%>%
+  left_join(rankOrderBlock)%>%
+  group_by(exp_unit)%>%
+  filter(rank<=num_codominants)%>%
+  ungroup()
 
-ggplot(data=CmaxDrivers, aes(x=Cmax, y=num_codominants)) +
-  geom_point() +
-  xlab('Cmax') + ylab('Number of Codominants')
-#export at 800x800
+# write.csv(codomSppListBlock, 'NutNet_codominants_list_block_01292021.csv', row.names=F)
+
+
+
+# -----calculate Cmax (codominance metric) - site-level-----
+nutnetSite <- nutnet%>%
+  mutate(exp_unit=paste(site_code, trt, year, sep='::'))%>% #regroup by site*trt
+  group_by(exp_unit, genus_species)%>%
+  summarise(cover=sum(cover))%>%
+  ungroup()
+
+#calculate relative abundance
+relCoverSite <- nutnetSite%>%
+  group_by(exp_unit)%>%
+  summarise(totcov=sum(cover))%>%
+  ungroup()%>%
+  right_join(nutnetSite)%>%
+  filter(cover>0)%>%
+  mutate(relcov=(cover/totcov)*100)%>%
+  select(-cover, -totcov)
+
+#generate rank of each species in each plot by relative cover, with rank 1 being most abundant
+rankOrderSite <- relCoverSite%>%
+  group_by(exp_unit)%>%
+  mutate(rank = as.numeric(order(order(relcov, decreasing=TRUE))))%>%
+  ungroup()
+
+###calculating harmonic means for all subsets of rank orders
+#make a new dataframe with just the label
+expUnitSite=relCoverSite%>%
+  select(exp_unit)%>%
+  unique()
+
+#makes an empty dataframe
+harmonicMeanSite=data.frame(row.names=1) 
+
+### NOTE: this code takes about 30 mins to run, so use the output in the dropbox unless there is a reason to re-run it
+#calculate harmonic means
+for(i in 1:length(expUnitSite$exp_unit)) {
+  
+  #creates a dataset for each unique experimental unit
+  subset <- rankOrderSite[rankOrderSite$exp_unit==as.character(expUnitSite$exp_unit[i]),]%>%
+    select(exp_unit, genus_species, relcov, rank)
+  
+  for(j in 1:length(subset$rank)) {
+    
+    #creates a dataset for each series of ranks from 1 through end of the number of ranks
+    subset2 <- subset[subset$rank<=j,]
+    
+    #calculate harmonic mean of values
+    mean <- harmonic.mean(subset2$relcov)
+    meanData <- data.frame(exp_unit=unique(subset2$exp_unit),
+                           num_ranks=j, 
+                           harmonic_mean=mean)
+    
+    harmonicMeanSite=rbind(meanData, harmonicMeanSite)
+    
+  }
+  
+}
+
+differenceDataSite <- harmonicMeanSite%>%
+  left_join(rankOrderSite)%>%
+  filter(rank==num_ranks+1)%>% #only keep the next most abundant species after the number that went into the calculation of the harmonic mean
+  mutate(difference=harmonic_mean-relcov) #calculates difference between harmonic mean and the relative cover of the next most abundant species
+
+CmaxSite <- differenceDataSite%>%
+  group_by(exp_unit)%>%
+  summarise(Cmax=max(difference))%>%
+  ungroup()%>%
+  left_join(differenceDataSite)%>%
+  filter(Cmax==difference)%>%
+  rename(num_codominants=num_ranks)%>%
+  select(exp_unit, Cmax, num_codominants)%>%
+  mutate(exp_unit2=exp_unit)%>%
+  separate(exp_unit2, into=c('site', 'trt', 'year'), sep='::')%>%
+  mutate(year=as.integer(year))
+
+codomSppListSite <- CmaxSite%>%
+  left_join(rankOrderSite)%>%
+  group_by(exp_unit)%>%
+  filter(rank<=num_codominants)%>%
+  ungroup()
+
+# write.csv(codomSppList, 'NutNet_codominants_list_site_01292021.csv', row.names=F)
+
+

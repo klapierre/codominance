@@ -26,9 +26,9 @@ sppNames <- read.csv('corre2trykey.csv')%>%
 corre <- read.csv('SpeciesRawAbundance_Nov2019.csv')%>%
   select(-X)%>%
   left_join(sppNames)%>%
-  rename(old_name=genus_species, cover=abundance, plot=plot_id, trt=treatment, year=calendar_year)%>%
+  rename(old_name=genus_species, cover=abundance)%>%
   mutate(genus_species=ifelse(is.na(species_matched), as.character(old_name), as.character(species_matched)))%>%
-  mutate(exp_unit=paste(site_code, project_name, plot, trt, year, sep='::'))%>%
+  mutate(exp_unit=paste(site_code, project_name, community_type, plot_id, treatment, calendar_year, sep='::'))%>%
   select(-species_matched, -old_name)
 
 #########################################
@@ -58,7 +58,7 @@ expUnit=corre%>%
 #makes an empty dataframe
 harmonicMean=data.frame(row.names=1) 
 
-### NOTE: this code takes about 5 hours to run, so use the output in the dropbox unless there is a reason to re-run it
+### NOTE: this code takes about 2 hours to run, so use the output in the dropbox unless there is a reason to re-run it
 #calculate harmonic means
 for(i in 1:length(expUnit$exp_unit)) {
   
@@ -97,7 +97,7 @@ Cmax <- differenceData%>%
   rename(num_codominants=num_ranks)%>%
   select(exp_unit, Cmax, num_codominants)%>%
   mutate(exp_unit2=exp_unit)%>%
-  separate(exp_unit2, into=c('site_code', 'project_name', 'plot_id', 'treatment', 'calendar_year'), sep='::')%>%
+  separate(exp_unit2, into=c('site_code', 'project_name', 'community_type', 'plot_id', 'treatment', 'calendar_year'), sep='::')%>%
   mutate(calendar_year=as.integer(calendar_year))
 
 codomSppList <- Cmax%>%
@@ -108,38 +108,6 @@ codomSppList <- Cmax%>%
 
 # write.csv(codomSppList, 'corre_codominants_list_01282021.csv', row.names=F)
 
-#histogram of codom
-ggplot(data=codomSppList, aes(x=num_codominants)) +
-  geom_histogram(color="black", fill="white", binwidth=1) +
-  xlab('Number of Codominant Species') + ylab('Count')
-#export at 1000x800
-
-ggplot(data=codomSppList, aes(x=Cmax, y=num_codominants)) +
-  geom_point() +
-  xlab('Cmax') + ylab('Number of Codominants')
-#export at 800x800
-
-
-###what drives codominance?
-#read in site-level data
-siteData <- read.csv('SiteExperimentDetails_March2019.csv')%>%
-  select(-X)%>%
-  left_join(read.csv('ExperimentInformation_March2019.csv'))%>%
-  select(-X)%>%
-  # select(site_code, continent, country, region, managed, burned, grazed, anthropogenic, habitat, elevation, latitude, longitude, site_richness, MAT_v2, ANN_TEMP_RANGE_v2, MAP_v2, MAP_VAR_v2, N_Dep, experiment_type, year, year_trt, first_nutrient_year, first_fenced_year, site_native_richness, site_introduced_richness)%>%
-  unique()%>%
-  rename(plant_gamma=rrich)
-
-#get site-level average cmax and number of codominants
-CmaxDrivers <- Cmax%>%
-  group_by(site_code, project_name, calendar_year, treatment)%>%
-  summarise(num_codominants=mean(num_codominants), Cmax=mean(Cmax))%>%
-  ungroup()%>%
-  left_join(siteData)
-
-# write.csv(CmaxDrivers, 'corre_codominance_01282021.csv', row.names=F)
-
-ggplot(data=CmaxDrivers, aes(x=Cmax, y=num_codominants)) +
-  geom_point() +
-  xlab('Cmax') + ylab('Number of Codominants')
-#export at 800x800
+siteProjComm <- codomSppList%>%
+  select(site_code, project_name, community_type)%>%
+  unique()

@@ -15,7 +15,8 @@ setwd('C:\\Users\\lapie\\Dropbox (Smithsonian)\\working groups\\GEx working grou
 ###read in data
 nutnet <- read.csv('full-cover-07-December-2020.csv')%>%
   rename(cover=max_cover, genus_species=Taxon)%>%
-  filter(live==1, !(genus_species %in% c('GROUND', 'OTHER LITTER', 'OTHER ARISTIDA CONTORTA (DEAD)', 'OTHER SALSOLA KALI (DEAD)', 'OTHER TRIODIA BASEDOWII (DEAD)', 'OTHER ANIMAL DROPPINGS', 'OTHER ROCK', 'OTHER ANIMAL DIGGINGS', 'OTHER WOODY OVERSTORY', 'OTHER STANDING DEAD', 'OTHER ANIMAL DIGGING', 'OTHER SOIL BIOCRUST', 'OTHER WOOD', 'OTHER SHELL', 'DEER')))
+  filter(live==1, !(genus_species %in% c('GROUND', 'OTHER LITTER', 'OTHER ARISTIDA CONTORTA (DEAD)', 'OTHER SALSOLA KALI (DEAD)', 'OTHER TRIODIA BASEDOWII (DEAD)', 'OTHER ANIMAL DROPPINGS', 'OTHER ROCK', 'OTHER ANIMAL DIGGINGS', 'OTHER WOODY OVERSTORY', 'OTHER STANDING DEAD', 'OTHER ANIMAL DIGGING', 'OTHER SOIL BIOCRUST', 'OTHER WOOD', 'OTHER SHELL', 'DEER')))%>%
+  mutate(trt=as.character(ifelse(year_trt<1, 'Control', as.character(trt))))
 
 
 # -----calculate Cmax (codominance metric) - plot-level-----
@@ -111,7 +112,7 @@ codomSppList <- Cmax%>%
 nutnetBlock <- nutnet%>%
   mutate(exp_unit=paste(site_code, block, trt, year, sep='::'))%>% #regroup by block*trt
   group_by(exp_unit, genus_species)%>%
-  summarise(cover=sum(cover))%>%
+  summarise(cover=sum(cover), length=length(genus_species))%>%
   ungroup()
 
 relCoverBlock <- nutnetBlock%>%
@@ -195,7 +196,7 @@ codomSppListBlock <- CmaxBlock%>%
 nutnetSite <- nutnet%>%
   mutate(exp_unit=paste(site_code, trt, year, sep='::'))%>% #regroup by site*trt
   group_by(exp_unit, genus_species)%>%
-  summarise(cover=sum(cover))%>%
+  summarise(cover=sum(cover), length=length(genus_species))%>%
   ungroup()
 
 #calculate relative abundance
@@ -271,6 +272,4 @@ codomSppListSite <- CmaxSite%>%
   filter(rank<=num_codominants)%>%
   ungroup()
 
-# write.csv(codomSppList, 'NutNet_codominants_list_site_01292021.csv', row.names=F)
-
-
+# write.csv(codomSppListSite, 'NutNet_codominants_list_site_01292021.csv', row.names=F)

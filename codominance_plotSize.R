@@ -201,28 +201,3 @@ ggplot(data=barGraphStats(data=subset(nutnetCodom, treatment_year==0 & block_num
 #export at 600x800
 
 
-# #Cmax
-# nutnetCmax <- nutnetPlot%>%
-#   left_join(nutnetBlock)%>%
-#   left_join(nutnetSite)%>%
-#   select(-plot, -block, -site)%>%
-#   gather(key='scale', value='Cmax', Cmax_plot, Cmax_block, Cmax_site)%>%
-#   mutate(plot_id=ifelse(scale %in% c('Cmax_block', 'Cmax_site'), NA, plot_id))%>%
-#   mutate(block_id=ifelse(scale %in% c('Cmax_site'), NA, block_id))%>%
-#   unique()%>%
-#   left_join(nutnetSiteInfo)%>%
-#   rename(calendar_year=year, treatment=trt, treatment_year=year_trt)%>%
-#   mutate(trt_type=ifelse(treatment=='Fence', 'herb_removal', ifelse(treatment=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(treatment=='Control', 'control', ifelse(treatment=='N', 'N', ifelse(treatment=='P', 'P', ifelse(treatment=='NP', 'N*P', ifelse(treatment=='K', 'K', 'mult_nutrient'))))))))%>%
-#   mutate(plot_size_m2=1, plot_permenant='y')%>%
-#   group_by(site_code)%>%
-#   mutate(experiment_length=length(treatment_year))%>%
-#   ungroup()%>%
-#   select(site_code, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number, block_number, scale, Cmax)
-# 
-# #model - continuous codominance metric
-# CmaxNutNetModel <- lm(Cmax ~ scale, data=subset(nutnetCmax, treatment_year==0 & block_number==3 & plot_number==30))
-# anova(CmaxNutNetModel) #plot size does not affect number of codominant species
-# 
-# ggplot(data=subset(nutnetCmax, treatment_year==0 & block_number==3 & plot_number>20), aes(x=scale, y=Cmax)) +
-#   geom_boxplot() + 
-#   xlab('Scale') + ylab('Cmax')

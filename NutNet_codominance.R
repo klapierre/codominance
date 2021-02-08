@@ -32,11 +32,11 @@ relCover <- nutnet%>%
   mutate(relcov=(cover/totcov)*100)%>%
   select(-cover, -totcov)
 
-evenness <- relCover%>%
+evennessPlot <- relCover%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evenness, 'nutnet_richEven_01292021.csv')
+# write.csv(evennessPlot, 'nutnet_plot_richEven_01292021.csv')
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%
@@ -124,6 +124,13 @@ relCoverBlock <- nutnetBlock%>%
   mutate(relcov=(cover/totcov)*100)%>%
   select(-cover, -totcov)
 
+evennessBlock <- relCoverBlock%>%
+  separate(exp_unit, c('site_code', 'block', 'trt', 'year'), sep='::')%>%
+  mutate(exp_unit=paste(site_code, block, trt, sep='::'))%>%
+  community_structure(time.var = 'year', abundance.var = 'relcov',
+                      replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
+
+# write.csv(evennessBlock, 'nutnet_block_richEven_01292021.csv')
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrderBlock <- relCoverBlock%>%
@@ -208,6 +215,14 @@ relCoverSite <- nutnetSite%>%
   filter(cover>0)%>%
   mutate(relcov=(cover/totcov)*100)%>%
   select(-cover, -totcov)
+
+evennessSite <- relCoverSite%>%
+  separate(exp_unit, c('site_code', 'trt', 'year'), sep='::')%>%
+  mutate(exp_unit=paste(site_code, trt, sep='::'))%>%
+  community_structure(time.var = 'year', abundance.var = 'relcov',
+                      replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
+
+# write.csv(evennessSite, 'nutnet_site_richEven_01292021.csv')
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrderSite <- relCoverSite%>%

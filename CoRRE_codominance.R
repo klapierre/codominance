@@ -6,6 +6,7 @@
 ################################################################################
 
 library(psych)
+library(codyn)
 library(tidyverse)
 
 #kim's laptop
@@ -31,6 +32,7 @@ corre <- read.csv('SpeciesRawAbundance_Nov2019.csv')%>%
   mutate(exp_unit=paste(site_code, project_name, community_type, plot_id, treatment, calendar_year, sep='::'))%>%
   select(-species_matched, -old_name)
 
+
 #########################################
 ###calculate Cmax (codominance metric)###
 
@@ -42,6 +44,12 @@ relCover <- corre%>%
   right_join(corre)%>%
   mutate(relcov=(cover/totcov)*100)%>%
   select(-cover, -totcov)
+
+evenness <- relCover%>%
+  community_structure(time.var = 'calendar_year', abundance.var = 'relcov',
+                      replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
+
+# write.csv(evenness, 'corre_richEven_01292021.csv')
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%

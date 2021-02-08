@@ -36,7 +36,7 @@ evennessPlot <- relCover%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evennessPlot, 'nutnet_plot_richEven_01292021.csv')
+# write.csv(evennessPlot, 'nutnet_plot_richEven_01292021.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%
@@ -130,7 +130,7 @@ evennessBlock <- relCoverBlock%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evennessBlock, 'nutnet_block_richEven_01292021.csv')
+# write.csv(evennessBlock, 'nutnet_block_richEven_01292021.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrderBlock <- relCoverBlock%>%
@@ -222,7 +222,7 @@ evennessSite <- relCoverSite%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evennessSite, 'nutnet_site_richEven_01292021.csv')
+# write.csv(evennessSite, 'nutnet_site_richEven_01292021.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrderSite <- relCoverSite%>%

@@ -49,7 +49,7 @@ evenness <- relCover%>%
   community_structure(time.var = 'calendar_year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evenness, 'corre_richEven_01292021.csv')
+# write.csv(evenness, 'corre_richEven_01292021.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%

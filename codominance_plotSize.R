@@ -49,17 +49,12 @@ corre <- read.csv('CoRRE\\corre_codominants_list_01282021.csv')%>%
   unique()%>%
   left_join(read.csv('CoRRE\\corre_richEven_01292021.csv'))%>%
   left_join(read.csv('CoRRE\\corre_plot_size.csv'))%>%
-  left_join(read.csv('CoRRE\\siteExperimentDetails_March2019.csv'))%>%
   left_join(read.csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
   group_by(site_code, project_name, community_type, calendar_year, treatment)%>%
   mutate(plot_number=length(plot_id))%>%
   ungroup()%>%
-  select(exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)%>%
-  rename(gamma_rich=rrich)
+  select(exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, Cmax, num_codominants, richness, Evar)
 
-plot(corre$Evar, corre$num_codominants)
-plot(corre$richness, corre$num_codominants)
-plot(corre$plot_size_m2, corre$num_codominants)
 
 #GEx
 gex <- read.csv('GEx\\GEx_codominants_list_06112020.csv')%>%
@@ -67,26 +62,19 @@ gex <- read.csv('GEx\\GEx_codominants_list_06112020.csv')%>%
   unique()%>%
   left_join(read.csv('GEx\\gex_richEven_01292021.csv'))%>%
   left_join(read.csv('GEx\\GEx-metadata-with-other-env-layers-v2.csv'))%>%
-  mutate(project_name='NA', community_type='NA', trt_type=ifelse(trt=='G', 'control', 'herb_removal'), plot_permenant='NA', gamma_rich='NA', anpp='NA')%>%
-  rename(site_code=site, plot_id=block, calendar_year=year, treatment_year=exage, plot_id=block, treatment=trt, plot_size_m2=PlotSize, MAP=bio12, MAT=bio1)%>%
-  group_by(site_code, plot_id, treatment)%>%
-  mutate(experiment_length=max(treatment_year))%>%
-  ungroup()%>%
+  mutate(project_name='NA', community_type='NA', trt_type=ifelse(trt=='G', 'control', 'herb_removal'), plot_permenant='NA')%>%
+  rename(site_code=site, plot_id=block, calendar_year=year, treatment_year=exage, plot_id=block, treatment=trt, plot_size_m2=PlotSize)%>%
   group_by(site_code, project_name, community_type, calendar_year, treatment)%>%
   mutate(plot_number=length(plot_id))%>%
   ungroup()%>%
-  select(exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
-
-plot(gex$Evar, gex$num_codominants)
-plot(gex$richness, gex$num_codominants)
-plot(gex$plot_size_m2, gex$num_codominants)
+  select(exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, Cmax, num_codominants, richness, Evar)
 
 
 # -----combine corre and gex-----
 individualExperiments <- rbind(corre, gex)
 
 expInfo <- individualExperiments%>%
-  select(site_code, project_name, community_type, treatment, trt_type, plot_size_m2, plot_number, MAP, MAT, gamma_rich, anpp, experiment_length)
+  select(site_code, project_name, community_type, treatment, trt_type, plot_size_m2, plot_number)
 
 
 #-----drivers of codominance in control plots-----
@@ -103,8 +91,6 @@ controlsIndExp <- individualExperiments%>%
 
 #model - continuous codominance metric
 anova(codomPlotInfoModel <- lm(num_codominants_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does not affect number of codominant species
-anova(codomPlotInfoModel <- lm(num_codominants_mean ~ plot_size_m2 + Evar_mean + richness_mean, data=controlsIndExp)) #plot size does not affect number of codominant species, richness and evenness are related
-
 # anova(evarPlotInfoModel <- lm(Evar_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does not affect evenness
 # anova(richPlotInfoModel <- lm(richness_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does affect species richness
 
@@ -123,8 +109,6 @@ ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&plot_size_m2<20), aes(x=
                    labels=c('monodominance', '2 codominants', '3 codominants', '4+ codominants')) +
   coord_flip()
 #export at 600x800
-
-
 
 
 
@@ -197,7 +181,4 @@ ggplot(data=barGraphStats(data=subset(nutnetCodom, treatment_year==0 & block_num
   annotate('text', x = 2, y = 2.6, label = 'ab', size = 6) +
   annotate('text', x = 3, y = 3.05, label = 'b', size = 6) +
   theme(axis.text.x=element_text(size=16, hjust=0.5, vjust=0.5, margin=margin(t=15)))
-  
 #export at 600x800
-
-

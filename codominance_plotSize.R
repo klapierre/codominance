@@ -87,20 +87,21 @@ controlsIndExp <- individualExperiments%>%
   summarise(num_codominants_mean=mean(num_codominants_temporal), num_codominants_var=var(num_codominants_temporal), Evar_mean=mean(Evar_temporal), Evar_var=var(Evar_temporal), richness_mean=mean(richness_temporal), richness_var=mean(richness_temporal))%>%
   ungroup()%>%
   left_join(expInfo)%>%
-  mutate(codominance=ifelse(num_codominants_mean<=1.5, 'monodominance', ifelse(num_codominants_mean>1.5&num_codominants_mean<=2.5, '2 codominants', ifelse(num_codominants_mean>2.5&num_codominants_mean<=3.5, '3 codominants', 'even'))))
+  mutate(codominance=ifelse(num_codominants_mean<=1.5, 'monodominance', ifelse(num_codominants_mean>1.5&num_codominants_mean<=2.5, '2 codominants', ifelse(num_codominants_mean>2.5&num_codominants_mean<=3.5, '3 codominants', 'even'))))%>%
+  mutate(num_codominants_restricted=ifelse(num_codominants_mean>5, 5, num_codominants_mean))
 
 #model - continuous codominance metric
-anova(codomPlotInfoModel <- lm(num_codominants_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does not affect number of codominant species
+anova(codomPlotInfoModel <- lm(num_codominants_restricted ~ plot_size_m2, data=controlsIndExp)) #plot size does not affect number of codominant species
 # anova(evarPlotInfoModel <- lm(Evar_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does not affect evenness
 # anova(richPlotInfoModel <- lm(richness_mean ~ plot_size_m2, data=controlsIndExp)) #plot size does affect species richness
 
-# ggplot(data=controlsIndExp, aes(x=plot_number, y=num_codominants_mean)) +
+# ggplot(data=controlsIndExp, aes(x=plot_number, y=num_codominants_restricted)) +
   # geom_point() +xlab('Number of Plots') + ylab('Number of Codominant Species')
-ggplot(data=controlsIndExp, aes(x=plot_size_m2, y=num_codominants_mean)) +
+ggplot(data=controlsIndExp, aes(x=plot_size_m2, y=num_codominants_restricted)) +
   geom_point() +xlab('Plot Size (m2)') + ylab('Number of Codominant Species')
 
 #model - categorical codominance metric
-anova(lm(plot_size_m2 ~ codominance, data=controlsIndExp)) #plot size does not affect number of codominant species
+# anova(lm(plot_size_m2 ~ codominance, data=controlsIndExp)) #plot size does not affect number of codominant species
 
 ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&plot_size_m2<20), aes(x=codominance, y=plot_size_m2)) +
   geom_boxplot() +

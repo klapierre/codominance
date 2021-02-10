@@ -93,8 +93,6 @@ nutnetANPP <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December-202
   ungroup()
 
 nutnetSiteInfo <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December-2020.csv')%>%
-  mutate(database='NutNet', project_name='NA', community_type='NA', plot_size_m2=1, plot_permenant='y')%>%
-  mutate(trt_type=ifelse(trt=='Control', 'control', ifelse(trt=='Fence', 'herb_removal', ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(trt=='N', 'N', ifelse(trt=='P', 'P', ifelse(trt=='K', 'K', ifelse(trt=='NP', 'N*P', 'mult_nutrient'))))))))%>%
   group_by(site_code)%>%
   mutate(experiment_length=max(year_trt))%>%
   ungroup()%>%
@@ -103,7 +101,7 @@ nutnetSiteInfo <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December
   ungroup()%>%
   rename(MAP=MAP_v2, MAT=MAT_v2, gamma_rich=site_richness)%>%
   left_join(nutnetANPP)%>%
-  select(database, site_code, project_name, community_type, trt, trt_type, year, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number, plot_size_m2, plot_permenant)%>%
+  select(site_code, trt, year, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number)%>%
   unique()
 
 nutnet <- read.csv('nutnet\\NutNet_codominants_list_plot_01292021.csv')%>%
@@ -111,6 +109,8 @@ nutnet <- read.csv('nutnet\\NutNet_codominants_list_plot_01292021.csv')%>%
   unique()%>%
   left_join(read.csv('nutnet\\nutnet_plot_richEven_01292021.csv'))%>%
   left_join(nutnetSiteInfo)%>%
+  mutate(database='NutNet', project_name='NA', community_type='NA', plot_size_m2=1, plot_permenant='y')%>%
+  mutate(trt_type=ifelse(year_trt<1, 'control', ifelse(trt=='Control', 'control', ifelse(trt=='Fence', 'herb_removal', ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(trt=='N', 'N', ifelse(trt=='P', 'P', ifelse(trt=='K', 'K', ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
   rename(plot_id=plot, calendar_year=year, treatment_year=year_trt, treatment=trt)%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
 
@@ -353,3 +353,142 @@ ggarrange(richnessFig, EvarFig,
 # ggarrange(MAPfig, MATfig, richnessFig, anppFig,
 #           ncol = 2, nrow = 2)
 # #export at 1200x800
+
+
+#-----global change treatment effects on codominance-----
+ctlCodom <- individualExperiments%>%
+  filter(treatment_year>0, trt_type=='control')%>%
+  group_by(database, site_code, project_name, community_type, treatment_year, plot_size_m2)%>%
+  summarise(num_codominants_control=mean(num_codominants))%>%
+  ungroup()
+
+trtCodom <- individualExperiments%>%
+  filter(treatment_year>0, trt_type!='control')%>%
+  group_by(database, site_code, project_name, community_type, trt_type, treatment, treatment_year, plot_size_m2)%>%
+  summarise(num_codominants=mean(num_codominants))%>%
+  ungroup()%>%
+  left_join(ctlCodom)%>%
+  mutate(codom_RR=log(num_codominants/num_codominants_control))%>%
+  mutate(drop=ifelse(database=='NutNet'&treatment %in% c('Fence', 'NPK+Fence'), 1, 0))%>% #removed NutNet fences, most of which don't really keep out herbivores in the same way that GEx exclosures do
+  filter(drop==0)%>%
+  select(-drop)
+
+trtCodomMaxDiff <- trtCodom%>%
+  group_by(database, site_code, project_name, community_type, trt_type, treatment, plot_size_m2)%>%
+  mutate(max=max(codom_RR), min=min(codom_RR))%>%
+  ungroup()%>%
+  mutate(keep=ifelse(abs(min)>max, 'min', 'max'))%>%
+  mutate(drop=ifelse(keep=='min' & codom_RR==min, 0, ifelse(keep=='max' & codom_RR==max, 0, 1)))%>%
+  filter(drop==0)%>%
+  select(-drop)
+
+subsetTrtCodom <- trtCodomMaxDiff%>%
+  filter(!is.na(plot_size_m2) & !is.na(trt_type) & !is.na(codom_RR) &
+           trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'temp', 'K'))
+  
+
+#number of codominants RR
+summary(codomGCD <- lme(codom_RR ~ as.factor(trt_type), 
+                                data=subset(subsetTrtCodom, trt_type!='control'), 
+                                random=~1|plot_size_m2))
+check_model(codomGCD)
+anova(codomGCD)
+lsmeans(codomGCD, pairwise~as.factor(trt_type), adjust="tukey")
+
+#difference from 0 for each treatment type
+with(data=subsetTrtCodom, t.test(codom_RR, mu=0)) #t = -4.6149, df = 1150, p-value = 4.375e-06 ***
+with(subset(subsetTrtCodom, trt_type=='drought'), t.test(codom_RR, mu=0)) #t = -0.19633, df = 22, p-value = 0.8462
+with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.6033, df = 200, p-value = 0.009924 ***
+with(subset(subsetTrtCodom, trt_type=='irr'), t.test(codom_RR, mu=0)) #t = -0.32187, df = 27, p-value = 0.75
+with(subset(subsetTrtCodom, trt_type=='mult_nutrient'), t.test(codom_RR, mu=0)) #t = -3.1666, df = 365, p-value = 0.001672 ***
+with(subset(subsetTrtCodom, trt_type=='N'), t.test(codom_RR, mu=0)) #t = -2.9081, df = 183, p-value = 0.004086 ***
+with(subset(subsetTrtCodom, trt_type=='N*P'), t.test(codom_RR, mu=0)) #t = -1.6492, df = 131, p-value = 0.1015 ***
+with(subset(subsetTrtCodom, trt_type=='P'), t.test(codom_RR, mu=0)) #t = -0.7349, df = 111, p-value = 0.464
+with(subset(subsetTrtCodom, trt_type=='temp'), t.test(codom_RR, mu=0)) #t = -0.88141, df = 17, p-value = 0.3904
+with(subset(subsetTrtCodom, trt_type=='K'), t.test(codom_RR, mu=0)) #t = 0.98755, df = 86, p-value = 0.3261
+
+#figure
+trtBars<-subsetTrtCodom%>%
+  group_by(trt_type)%>%
+  summarise(mean=mean(codom_RR),
+            n=length(codom_RR),
+            sd=sd(codom_RR))%>%
+  ungroup()%>%
+  mutate(se=sd/sqrt(n))
+
+overallBar<-subsetTrtCodom%>%
+  summarise(mean=mean(codom_RR),
+            n=length(codom_RR),
+            sd=sd(codom_RR))%>%
+  mutate(se=sd/sqrt(n))%>%
+  mutate(trt_type='overall')
+
+barGraph <- rbind(overallBar, trtBars)
+
+ggplot(data=barGraph, aes(x=trt_type, y=mean, fill=trt_type)) +
+  geom_bar(position=position_dodge(), stat="identity") +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits = c('overall', 'drought', 'irr', 'temp', 'N', 'P', 'K', 'N*P', 'mult_nutrient', 'herb_removal'),
+                   labels = c('overall', 'drought', 'irrigation', 'warming', 'N', 'P', 'K', 'N*P', 'mult. nutrients', 'herbivore rem.')) +
+  scale_fill_manual(values=c('#F1C646', '#F17236', '#F1C646', '#769370', '#769370', '#769370', '#769370', 'black', '#769370', '#F1C646')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  geom_vline(xintercept = 1.5, size = 1) +
+  geom_text(x=1, y=-0.17, label="*", size=8) +
+  geom_text(x=5, y=-0.23, label="*", size=8) +
+  geom_text(x=9, y=-0.21, label="*", size=8) +
+  geom_text(x=10, y=-0.21, label="*", size=8)
+
+
+#difference in codom
+overall <- subsetTrtCodom%>%
+  select(database, site_code, project_name, community_type, trt_type, num_codominants, num_codominants_control)%>%
+  gather(key='treatment', value='num_codominants', num_codominants, num_codominants_control)%>%
+  mutate(trt_ctl=ifelse(treatment=='num_codominants', 'trt', 'ctl'))
+
+overallFig <- ggplot(data=barGraphStats(data=overall, variable="num_codominants", byFactorNames=c("trt_ctl")), aes(x=trt_ctl, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='black') +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("Number of Codominants") +
+  scale_x_discrete(limits = c('ctl', 'trt'),
+                   labels = c('control', 'treatment')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+
+nFig <- ggplot(data=barGraphStats(data=subset(overall, trt_type=='N'), variable="num_codominants", byFactorNames=c("trt_ctl")), aes(x=trt_ctl, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("Number of Codominants") +
+  scale_x_discrete(limits = c('ctl', 'trt'),
+                   labels = c('control', 'N')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+multNutFig <- ggplot(data=barGraphStats(data=subset(overall, trt_type=='mult_nutrient'), variable="num_codominants", byFactorNames=c("trt_ctl")), aes(x=trt_ctl, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("Number of Codominants") +
+  scale_x_discrete(limits = c('ctl', 'trt'),
+                   labels = c('control', 'mult. nutrients')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+herbRemFig <- ggplot(data=barGraphStats(data=subset(overall, trt_type=='herb_removal'), variable="num_codominants", byFactorNames=c("trt_ctl")), aes(x=trt_ctl, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("Number of Codominants") +
+  scale_x_discrete(limits = c('ctl', 'trt'),
+                   labels = c('control', 'herbivore rem.')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+ggarrange(overallFig, nFig, multNutFig, herbRemFig,
+          ncol = 4, nrow = 1)
+#export at 1200x600

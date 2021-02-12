@@ -368,10 +368,10 @@ trtCodom <- individualExperiments%>%
   summarise(num_codominants=mean(num_codominants))%>%
   ungroup()%>%
   left_join(ctlCodom)%>%
-  mutate(codom_RR=log(num_codominants/num_codominants_control))%>%
-  mutate(drop=ifelse(database=='NutNet'&treatment %in% c('Fence', 'NPK+Fence'), 1, 0))%>% #removed NutNet fences, most of which don't really keep out herbivores in the same way that GEx exclosures do
-  filter(drop==0)%>%
-  select(-drop)
+  mutate(codom_RR=log(num_codominants/num_codominants_control))
+  # mutate(drop=ifelse(database=='NutNet'&treatment %in% c('Fence', 'NPK+Fence'), 1, 0))%>% #removed NutNet fences, most of which don't really keep out herbivores in the same way that GEx exclosures do
+  # filter(drop==0)%>%
+  # select(-drop)
 
 trtCodomMaxDiff <- trtCodom%>%
   group_by(database, site_code, project_name, community_type, trt_type, treatment, plot_size_m2)%>%
@@ -398,7 +398,7 @@ lsmeans(codomGCD, pairwise~as.factor(trt_type), adjust="tukey")
 #difference from 0 for each treatment type
 with(data=subsetTrtCodom, t.test(codom_RR, mu=0)) #t = -4.6149, df = 1150, p-value = 4.375e-06 ***
 with(subset(subsetTrtCodom, trt_type=='drought'), t.test(codom_RR, mu=0)) #t = -0.19633, df = 22, p-value = 0.8462
-with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.6033, df = 200, p-value = 0.009924 ***
+with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.8211, df = 280, p-value = 0.005128 ***
 with(subset(subsetTrtCodom, trt_type=='irr'), t.test(codom_RR, mu=0)) #t = -0.32187, df = 27, p-value = 0.75
 with(subset(subsetTrtCodom, trt_type=='mult_nutrient'), t.test(codom_RR, mu=0)) #t = -3.1666, df = 365, p-value = 0.001672 ***
 with(subset(subsetTrtCodom, trt_type=='N'), t.test(codom_RR, mu=0)) #t = -2.9081, df = 183, p-value = 0.004086 ***
@@ -492,3 +492,72 @@ herbRemFig <- ggplot(data=barGraphStats(data=subset(overall, trt_type=='herb_rem
 ggarrange(overallFig, nFig, multNutFig, herbRemFig,
           ncol = 4, nrow = 1)
 #export at 1200x600
+
+
+#-----comparing N effects in CoRRE and NutNet-----
+correNlevels <- read.csv('CoRRE\\ExperimentInformation_March2019.csv')%>%
+  filter(trt_type=='N')%>%
+  select(site_code, project_name, community_type, trt_type, n)%>%
+  unique()%>%
+  group_by(site_code, project_name, community_type)%>%
+  mutate(n_levels=length(n))%>%
+  ungroup()%>%
+  mutate(database='CoRRE')%>%
+  select(-n)%>%
+  unique()
+
+codomN <- subsetTrtCodom%>%
+  filter(trt_type=='N')%>%
+  left_join(correNlevels)%>%
+  mutate(n_levels=ifelse(database=='NutNet', 1, n_levels))%>%
+  left_join(read.csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
+  select(database, site_code, project_name, community_type, treatment_year, n_levels, n, plot_size_m2, codom_RR, num_codominants, num_codominants_control)%>%
+  mutate(n=ifelse(database=='NutNet', 10, n))
+
+#is there a database effect? - not significnat, but a trend for stronger responses in NutNet
+summary(codomNModel <- lme(codom_RR ~ as.factor(database), 
+                        data=codomN, 
+                        random=~1|plot_size_m2))
+check_model(codomNModel)
+anova(codomNModel) #no difference in N effect between CoRRE and NutNet
+lsmeans(codomNModel, pairwise~as.factor(database), adjust="tukey")
+
+
+ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), position=position_dodge(0.9), width=0.2) +
+  xlab("Database") +
+  ylab("ln RR (Number of Codominants)")
+
+#N amount
+summary(codomNlevelModel <- lme(codom_RR ~ n, 
+                      data=codomN, 
+                      random=~1|plot_size_m2))
+anova(codomNlevelModel) #no difference in N effect between CoRRE and NutNet
+
+ggplot(data=codomN, aes(x=n, y=codom_RR, color=database)) +
+  geom_point() + geom_smooth(se=F, method='lm')
+
+#N levels for threshold
+summary(codomNthresholdModel <- lme(codom_RR ~ n, 
+                                data=subset(codomN, n_levels>1), 
+                                random=~1|plot_size_m2))
+anova(codomNthresholdModel) #no difference in N effect between CoRRE and NutNet
+
+ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR, color=site_code)) +
+  geom_point() + geom_smooth(se=F, method='lm', formula = y ~ x + I(x^2))
+
+
+#-----comparing herbivore removal effects in GEx and NutNet-----
+summary(codomHerb <- lme(codom_RR ~ as.factor(database), 
+                        data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), 
+                        random=~1|site_code))
+check_model(codomHerb)
+anova(codomHerb) #no difference in N effect between CoRRE and NutNet
+lsmeans(codomHerb, pairwise~as.factor(database), adjust="tukey")
+
+ggplot(data=barGraphStats(data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity") +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), position=position_dodge(0.9), width=0.2) +
+  xlab("Database") +
+  ylab("ln RR (Number of Codominants)")

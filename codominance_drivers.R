@@ -116,7 +116,16 @@ nutnet <- read.csv('nutnet\\NutNet_codominants_list_plot_01292021.csv')%>%
 
 
 # -----combine datasets-----
-individualExperiments <- rbind(corre, gex, nutnet)
+
+#fix problem where if communities are completely even, Cmax=0 and multiple levels are listed for the plot; this needs to be fixed in original code
+
+individualExperiments <- rbind(corre, gex, nutnet)%>%
+  mutate(num_codominants_fix=ifelse(Cmax==0, richness, num_codominants))%>%
+  ungroup()%>%
+  select(-num_codominants)%>%
+  rename(num_codominants=num_codominants_fix)%>%
+  unique()
+
 
 expInfo <- individualExperiments%>%
   select(database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp)%>%
@@ -148,7 +157,7 @@ summary(codomSiteDrivers <- lme(num_codominants_restricted ~ MAP + MAT + gamma_r
                            data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
                            random=~1|plot_size_m2))
 check_model(codomSiteDrivers)
-anova(codomSiteDrivers)
+anova(codomSiteDrivers) #significant effect of MAT and gamma_rich
 
 #R2 values
 codomSiteNull <- lme(num_codominants_restricted ~ 1, 
@@ -161,11 +170,11 @@ r2(codomMAP, codomSiteNull) #MAP: marginal R2=0.000
 codomMAT <- lme(num_codominants_restricted ~ MAT,
                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
                 random=~1|plot_size_m2)
-r2(codomMAT, codomSiteNull) #MAT: marginal R2=0.024
+r2(codomMAT, codomSiteNull) #MAT: marginal R2=0.023
 codomGammaRich <- lme(num_codominants_restricted ~ gamma_rich,
                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
                 random=~1|plot_size_m2)
-r2(codomGammaRich, codomSiteNull) #gamma_rich: marginal R2=0.044
+r2(codomGammaRich, codomSiteNull) #gamma_rich: marginal R2=0.037
 codomANPP <- lme(num_codominants_restricted ~ anpp,
                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
                 random=~1|plot_size_m2)
@@ -181,7 +190,7 @@ MAPfig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!i
 MATfig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
                  aes(x=MAT, y=num_codominants_restricted)) +
   geom_point(color='grey45') +
-  xlab('MAT (C)') + ylab('Number of Codominants') +
+  xlab('MAT (C)') + ylab('') +
   geom_smooth(method='lm', se=F, color='black', size=2)
 
 richnessFig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
@@ -193,7 +202,7 @@ richnessFig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MA
 anppFig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
                   aes(x=MAP, y=num_codominants_restricted)) +
   geom_point(color='grey45') +
-  xlab('Site Productivity') + ylab('Number of Codominants')
+  xlab('Site Productivity') + ylab('')
 
 ggarrange(MAPfig, MATfig, richnessFig, anppFig,
           ncol = 2, nrow = 2)
@@ -215,7 +224,7 @@ summary(codomPlotDrivers <- lme(num_codominants_restricted ~ richness + Evar,
                              data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130), 
                              random=~1|plot_size_m2))
 check_model(codomPlotDrivers)
-anova(codomPlotDrivers)
+anova(codomPlotDrivers) #significant effects of plot richness and evenness
 
 #R2 values
 codomPlotNull <- lme(num_codominants_restricted ~ 1, 
@@ -224,11 +233,11 @@ codomPlotNull <- lme(num_codominants_restricted ~ 1,
 codomRichness <- lme(num_codominants_restricted ~ richness, 
                       data=subset(controlsPlot, !is.na(plot_size_m2)), 
                       random=~1|plot_size_m2)
-r2(codomRichness, codomPlotNull) #richness: marginal R2=0.041
+r2(codomRichness, codomPlotNull) #richness: marginal R2=0.042
 codomEvar <- lme(num_codominants_restricted ~ Evar, 
                  data=subset(controlsPlot, !is.na(plot_size_m2)), 
                  random=~1|plot_size_m2)
-r2(codomEvar, codomPlotNull) #Evar: marginal R2=0.014
+r2(codomEvar, codomPlotNull) #Evar: marginal R2=0.013
 
 #-----figures of plot-level drivers-----
 richnessFig <- ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
@@ -254,46 +263,13 @@ ggarrange(richnessFig, EvarFig,
           ncol = 2, nrow = 1)
 #export at 1200x600
 
+ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
+       aes(x=Evar, y=num_codominants_restricted, color=richness)) +
+  geom_point() +
+  xlab('Plot Evenness') + ylab('Number of Codominants') +
+  geom_smooth(method='lm', se=F, color='black', size=2) +
+  scale_colour_gradient(trans='log', low='blue', high='red')
 
-
-# #ratio of codominants to richness
-# summary(codomPlotDrivers <- lme(codom_proportion ~ richness + Evar, 
-#                                 data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130), 
-#                                 random=~1|plot_size_m2))
-# check_model(codomPlotDrivers)
-# anova(codomPlotDrivers)
-# 
-# #R2 values
-# codomPlotNull <- lme(codom_proportion ~ 1, 
-#                      data=subset(controlsPlot, !is.na(plot_size_m2)), 
-#                      random=~1|plot_size_m2)
-# codomRichness <- lme(codom_proportion ~ richness, 
-#                      data=subset(controlsPlot, !is.na(plot_size_m2)), 
-#                      random=~1|plot_size_m2)
-# r2(codomRichness, codomPlotNull) #richness: marginal R2=0.133
-# codomEvar <- lme(codom_proportion ~ Evar, 
-#                  data=subset(controlsPlot, !is.na(plot_size_m2)), 
-#                  random=~1|plot_size_m2)
-# r2(codomEvar, codomPlotNull) #Evar: marginal R2=0.033
-# 
-# 
-# #-----figures of plot-level drivers-----
-# richnessFig <- ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
-#                       aes(x=richness, y=codom_proportion)) +
-#   geom_point(color='grey45') +
-#   xlab('Plot Richness') + ylab('Number of Codominants') +
-#   geom_smooth(method='lm', se=F, color='black', size=2)
-# 
-# eVarFig <- ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
-#                   aes(x=Evar, y=codom_proportion)) +
-#   geom_point(color='grey45') +
-#   xlab('Plot Evenness') + ylab('Number of Codominants/Plot Richness') +
-#   geom_smooth(method='lm', se=F, color='black', size=2)
-# 
-# 
-# ggarrange(MAPfig, MATfig, richnessFig, anppFig,
-#           ncol = 2, nrow = 2)
-# #export at 1200x800
 
 
 #-----global change treatment effects on codominance-----

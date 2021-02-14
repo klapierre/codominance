@@ -272,6 +272,7 @@ ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
 
 
 
+
 #-----global change treatment effects on codominance-----
 ctlCodom <- individualExperiments%>%
   filter(treatment_year>0, trt_type=='control')%>%

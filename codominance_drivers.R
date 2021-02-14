@@ -200,65 +200,6 @@ ggarrange(MAPfig, MATfig, richnessFig, anppFig,
 #export at 1200x800
 
 
-#-----model - proportional co-dominance-----
-summary(codomSiteDrivers <- lme(codom_proportion ~ MAP + MAT + gamma_rich + anpp, #10 of the 437 sites used in this analysis had num codominants reduced from >5 to 5
-                                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                                random=~1|plot_size_m2))
-check_model(codomSiteDrivers)
-anova(codomSiteDrivers)
-
-#R2 values
-codomSiteNull <- lme(codom_proportion ~ 1, 
-                     data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                     random=~1|plot_size_m2)
-codomMAP <- lme(codom_proportion ~ MAP,
-                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                random=~1|plot_size_m2)
-r2(codomMAP, codomSiteNull) #MAP: marginal R2=0.018
-codomMAT <- lme(codom_proportion ~ MAT,
-                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                random=~1|plot_size_m2)
-r2(codomMAT, codomSiteNull) #MAT: marginal R2=0.005
-codomGammaRich <- lme(codom_proportion ~ gamma_rich,
-                      data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                      random=~1|plot_size_m2)
-r2(codomGammaRich, codomSiteNull) #gamma_rich: marginal R2=0.167
-codomANPP <- lme(codom_proportion ~ anpp,
-                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                 random=~1|plot_size_m2)
-r2(codomANPP, codomSiteNull) #ANPP: marginal R2=0.100
-
-
-#-----figures of site-level drivers-----
-MAPfig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
-                 aes(x=MAP, y=codom_proportion)) +
-  geom_point(color='grey45') +
-  xlab('MAP (mm)') + ylab('Number of Codominants/Plot Richness') +
-  geom_smooth(method='lm', se=F, color='black', size=2)
-
-MATfig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
-                 aes(x=MAT, y=codom_proportion)) +
-  geom_point(color='grey45') +
-  xlab('MAT (C)') + ylab('Number of Codominants/Plot Richness') +
-  geom_smooth(method='lm', se=F, color='black', size=2)
-
-richnessFig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
-                      aes(x=gamma_rich, y=codom_proportion)) +
-  geom_point(color='grey45') +
-  xlab('Gamma Diversity') + ylab('Number of Codominants/Plot Richness') +
-  geom_smooth(method='lm', se=F, color='black', size=2)
-
-anppFig <- ggplot(data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)),
-                  aes(x=MAP, y=codom_proportion)) +
-  geom_point(color='grey45') +
-  xlab('Site Productivity') + ylab('Number of Codominants/Plot Richness') +
-  geom_smooth(method='lm', se=F, color='black', size=2)
-
-ggarrange(MAPfig, MATfig, richnessFig, anppFig,
-          ncol = 2, nrow = 2)
-#export at 1200x800
-
-
 #-----plot-level drivers of co-dominance-----
 controlsPlot <- individualExperiments%>%
   mutate(keep=ifelse(database=='NutNet'&treatment_year==0, 1, ifelse(database %in% c('CoRRE', 'GEx') & trt_type=='control', 1, 0)))%>%

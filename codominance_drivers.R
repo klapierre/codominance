@@ -154,15 +154,15 @@ controlsIndExp <- individualExperiments%>%
 
 #-----model - continuous co-dominance metrics-----
 summary(codomSiteDrivers <- lme(num_codominants_restricted ~ MAP + MAT + gamma_rich + anpp, #10 of the 437 sites used in this analysis had num codominants reduced from >5 to 5
-                           data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                           random=~1|plot_size_m2))
+                                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
+                                random=~1|plot_size_m2))
 check_model(codomSiteDrivers)
 anova(codomSiteDrivers) #significant effect of MAT and gamma_rich
 
 #R2 values
 codomSiteNull <- lme(num_codominants_restricted ~ 1, 
-                        data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                        random=~1|plot_size_m2)
+                     data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
+                     random=~1|plot_size_m2)
 codomMAP <- lme(num_codominants_restricted ~ MAP,
                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
                 random=~1|plot_size_m2)
@@ -172,12 +172,12 @@ codomMAT <- lme(num_codominants_restricted ~ MAT,
                 random=~1|plot_size_m2)
 r2(codomMAT, codomSiteNull) #MAT: marginal R2=0.023
 codomGammaRich <- lme(num_codominants_restricted ~ gamma_rich,
-                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                random=~1|plot_size_m2)
+                      data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
+                      random=~1|plot_size_m2)
 r2(codomGammaRich, codomSiteNull) #gamma_rich: marginal R2=0.037
 codomANPP <- lme(num_codominants_restricted ~ anpp,
-                data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
-                random=~1|plot_size_m2)
+                 data=subset(controlsIndExp, !is.na(plot_size_m2)&!is.na(MAP)&!is.na(MAT)&!is.na(gamma_rich)&!is.na(anpp)), 
+                 random=~1|plot_size_m2)
 r2(codomANPP, codomSiteNull) #ANPP: marginal R2=0.002
 
 
@@ -221,8 +221,8 @@ controlsPlot <- individualExperiments%>%
 
 #restricted number of codominants
 summary(codomPlotDrivers <- lme(num_codominants_restricted ~ richness + Evar, 
-                             data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130), 
-                             random=~1|plot_size_m2))
+                                data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130), 
+                                random=~1|plot_size_m2))
 check_model(codomPlotDrivers)
 anova(codomPlotDrivers) #significant effects of plot richness and evenness
 
@@ -231,8 +231,8 @@ codomPlotNull <- lme(num_codominants_restricted ~ 1,
                      data=subset(controlsPlot, !is.na(plot_size_m2)), 
                      random=~1|plot_size_m2)
 codomRichness <- lme(num_codominants_restricted ~ richness, 
-                      data=subset(controlsPlot, !is.na(plot_size_m2)), 
-                      random=~1|plot_size_m2)
+                     data=subset(controlsPlot, !is.na(plot_size_m2)), 
+                     random=~1|plot_size_m2)
 r2(codomRichness, codomPlotNull) #richness: marginal R2=0.042
 codomEvar <- lme(num_codominants_restricted ~ Evar, 
                  data=subset(controlsPlot, !is.na(plot_size_m2)), 
@@ -308,14 +308,21 @@ trtCodom <- individualExperiments%>%
   #create columns for P effect
   mutate(p=ifelse(database=='NutNet'&treatment %in% c('P', 'NP', 'PK', 'NPK', 'NPK+Fence'), 10, ifelse(database=='GEx', 0, ifelse(database=='NutNet'&treatment %in% c('N', 'K', 'NK', 'Fence', 'Control'), 0, p))))%>%
   mutate(trt_type_2=ifelse(trt_type=='P'&p<10, 'P<10', ifelse(trt_type=='P'&p>=10, 'P>10', as.character(trt_type))))%>%
-  select(database, site_code, project_name, community_type, trt_type, trt_type_2, treatment, treatment_year, plot_size_m2, codom_RR, n_levels, n, p, num_codominants, num_codominants_control)
-
-#this includes all years for each site -- consider for later analyses what to do about time
+  select(database, site_code, project_name, community_type, trt_type, trt_type_2, treatment, treatment_year, plot_size_m2, codom_RR, n_levels, n, p, num_codominants, num_codominants_control)%>%
+  #this includes all years for each site -- consider for later analyses what to do about time
+  
+  group_by(database, site_code, project_name, community_type, trt_type, treatment, plot_size_m2)%>%
+  mutate(max=max(codom_RR), min=min(codom_RR))%>%
+  ungroup()%>%
+  mutate(keep=ifelse(abs(min)>max, 'min', 'max'))%>%
+  mutate(drop=ifelse(keep=='min' & codom_RR==min, 0, ifelse(keep=='max' & codom_RR==max, 0, 1)))%>%
+  filter(drop==0)%>%
+  select(-drop)
 
 subsetTrtCodom <- trtCodom%>%
   filter(!is.na(plot_size_m2) & !is.na(trt_type) & !is.na(codom_RR) &
-           trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'temp', 'K'))
-  
+           trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'K'))
+
 
 
 
@@ -328,21 +335,22 @@ codomN <- subsetTrtCodom%>%
 
 #is there a database effect?
 summary(codomNModel <- lme(codom_RR ~ as.factor(database), 
-                        data=codomN, 
-                        random=~1|plot_size_m2))
+                           data=codomN, 
+                           random=~1|plot_size_m2))
 check_model(codomNModel)
 anova(codomNModel) #CoRRE significantly lower effect than NutNet
 lsmeans(codomNModel, pairwise~as.factor(database), adjust="tukey")
 
 ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), position=position_dodge(0.9), width=0.2) +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
   scale_x_discrete(limits=c('NutNet', 'CoRRE')) +
-  coord_cartesian(ylim=c(-0.1, 0.06)) +
+  coord_cartesian(ylim=c(-0.33, 0.05)) +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
-  geom_text(x=1, y=-0.085, label="a", size=6) +
-  geom_text(x=2, y=0.05, label="b", size=6)
+  # geom_text(x=1, y=-0.32, label="a", size=6) +
+  geom_text(x=1, y=-0.33, label="*", size=10) 
+  # geom_text(x=2, y=0.075, label="b", size=6)
 #export at 400x600
 
 
@@ -356,38 +364,50 @@ lsmeans(codomNModel, pairwise~as.factor(database_2), adjust="tukey")
 
 ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database_2")), aes(x=database_2, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), position=position_dodge(0.9), width=0.2) +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
   scale_x_discrete(limits=c('NutNet', 'CoRRE n>=10', 'CoRRE n<10'),
                    labels=c('NutNet\nN=10 gm2', 'CoRRE\nN>10 gm2', 'CoRRE\nN<10 gm2')) +
-  coord_cartesian(ylim=c(-0.1, 0.13)) +
+  coord_cartesian(ylim=c(-0.5, 0.3)) +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
-  geom_text(x=1, y=-0.085, label="a", size=6) +
-  geom_text(x=2, y=-0.075, label="a", size=6) +
-  geom_text(x=3, y=0.13, label="b", size=6)
+  geom_text(x=1, y=-0.33, label="a", size=6) +
+  geom_text(x=1, y=-0.34, label="   *", size=8) +
+  geom_text(x=2, y=-0.45, label="a", size=6) +
+  geom_text(x=2, y=-0.46, label="   *", size=8) +
+  geom_text(x=3, y=0.3, label="b", size=6)
 #export 600x650
 
 
 #N levels for threshold
-summary(codomNthresholdModel <- lme(codom_RR ~ n, 
-                                data=subset(codomN, n_levels>1), 
-                                random=~1|plot_size_m2))
+summary(codomNthresholdModel <- lme(codom_RR ~ log(n), 
+                                    data=subset(codomN, n_levels>1), 
+                                    random=~1|plot_size_m2))
 anova(codomNthresholdModel) #N level affects loss of codom spp
 
-#linear model is best fit
+# # log model is best fit
 # model.linear <- lm(codom_RR~n, data=subset(codomN, n_levels>1))
 # model.squared <- lm(codom_RR~poly(n,2), data=subset(codomN, n_levels>1))
+# model.log <- lm(codom_RR~log(n), data=subset(codomN, n_levels>1))
 # anova(model.linear,model.squared)
+# anova(model.linear,model.log)
 
 # ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR, color=site_code)) +
 #   geom_point() + geom_smooth(se=F, method='lm')
 
+# ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR)) +
+#   geom_point(color='#769370', size=2) +
+#   geom_smooth(se=F, method='lm', color='#769370', size=2, formula='y ~ log(x)') +
+#   xlab(expression(paste('Nitrogen (g',  ~ m ^ -2, ')'))) + ylab("ln RR (Number of Codominants)") +
+#   geom_hline(yintercept=0) +
+#   scale_x_continuous(breaks=seq(0,50,2))
+# #export at 600x400
+
 ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR)) +
-  geom_point(color='#769370', size=2) +
-  geom_smooth(se=F, method='lm', color='#769370', size=2) +
+  geom_point(color='#769370', size=3) +
+  geom_smooth(se=F, method='gam', color='#769370', size=2) +
   xlab(expression(paste('Nitrogen (g',  ~ m ^ -2, ')'))) + ylab("ln RR (Number of Codominants)") +
   geom_hline(yintercept=0)
-#export at 600x400
+#export at 800x600
 
 
 #-----P thresholds-----
@@ -401,23 +421,24 @@ ggplot(data=subset(subsetTrtCodom, trt_type=='P'), aes(x=p, y=codom_RR)) + geom_
 
 #-----comparing herbivore removal effects in GEx and NutNet-----
 summary(codomHerb <- lme(codom_RR ~ as.factor(database), 
-                        data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), 
-                        random=~1|site_code))
+                         data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), 
+                         random=~1|site_code))
 check_model(codomHerb)
 anova(codomHerb) #no difference in N effect between CoRRE and NutNet
 lsmeans(codomHerb, pairwise~as.factor(database), adjust="tukey")
 
 ggplot(data=barGraphStats(data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se), position=position_dodge(0.9), width=0.2) +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   scale_x_discrete(limits=c('NutNet', 'GEx')) + ylab("ln RR (Number of Codominants)") +
-  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20))
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
+  geom_text(x=2, y=-0.27, label="*", size=10) 
 #export at 400x600
 
 #power together vs separate databases
-with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -3.588, df = 868, p-value = 0.0003519 ***
-with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='GEx'), t.test(codom_RR, mu=0)) #t = -3.0179, df = 379, p-value = 0.002717 ***
-with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='NutNet'), t.test(codom_RR, mu=0)) #t = -2.7334, df = 441, p-value = 0.006521 ***
+with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.8419, df = 280, p-value = 0.004814 ***
+with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='NutNet'), t.test(codom_RR, mu=0)) # = -1.2386, df = 79, p-value = 0.2192 ***
+with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='GEx'), t.test(codom_RR, mu=0)) #t = -2.9257, df = 192, p-value = 0.003851 ***
 
 
 #compare across treatment types
@@ -426,63 +447,26 @@ allGCDs <- subsetTrtCodom%>%
   filter(drop==0)%>%
   select(-drop)
 
-summary(codomGCD <- lme(codom_RR ~ as.factor(trt_type)*treatment_year, 
+summary(codomGCD <- lme(codom_RR ~ as.factor(trt_type), 
                         data=allGCDs, 
-                        random=~1|site_code/project_name/community_type/treatment,
-                        correlation=corCompSymm(form=~1|site_code/project_name/community_type/treatment),
-                        control=lmeControl(returnObject=T)))
+                        random=~1|site_code/project_name/community_type))
 check_model(codomGCD)
 anova(codomGCD) #year * trt type interaction
 lsmeans(codomGCD, pairwise~as.factor(trt_type), adjust="tukey")
 
 #difference from 0 for each treatment type
-with(data=allGCDs, t.test(codom_RR, mu=0)) #t = -7.6177, df = 5116, p-value = 3.057e-14 ***
-with(subset(allGCDs, trt_type=='drought'), t.test(codom_RR, mu=0)) #t = -1.2071, df = 90, p-value = 0.2306
-with(subset(allGCDs, trt_type=='irr'), t.test(codom_RR, mu=0)) #t = 0.71245, df = 170, p-value = 0.4772
-with(subset(allGCDs, trt_type=='temp'), t.test(codom_RR, mu=0)) #t = -2.1471, df = 89, p-value = 0.0345
-with(subset(allGCDs, trt_type=='N'), t.test(codom_RR, mu=0)) #t = -3.263, df = 720, p-value = 0.001154 ***
-with(subset(allGCDs, trt_type=='P'), t.test(codom_RR, mu=0)) #t = 0.6497, df = 634, p-value = 0.5161
-with(subset(allGCDs, trt_type=='K'), t.test(codom_RR, mu=0)) #t = -0.36925, df = 508, p-value = 0.7121
-with(subset(allGCDs, trt_type=='N*P'), t.test(codom_RR, mu=0)) #t = -2.355, df = 639, p-value = 0.01882 ***
-with(subset(allGCDs, trt_type=='mult_nutrient'), t.test(codom_RR, mu=0)) #t = -7.4863, df = 1390, p-value = 1.253e-13 ***
-with(subset(allGCDs, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -3.588, df = 868, p-value = 0.0003519 ***
+with(data=allGCDs, t.test(codom_RR, mu=0)) #t = -4.7436, df = 1019, p-value = 2.398e-06 ***
+with(subset(allGCDs, trt_type=='drought'), t.test(codom_RR, mu=0)) #t = -0.19633, df = 22, p-value = 0.8462
+with(subset(allGCDs, trt_type=='irr'), t.test(codom_RR, mu=0)) #t = -0.32187, df = 27, p-value = 0.75
+# with(subset(allGCDs, trt_type=='temp'), t.test(codom_RR, mu=0)) #t = -0.88141, df = 17, p-value = 0.3904
+with(subset(allGCDs, trt_type=='N'), t.test(codom_RR, mu=0)) #t = -3.5755, df = 144, p-value = 0.0004764 ***
+with(subset(allGCDs, trt_type=='P'), t.test(codom_RR, mu=0)) #t = -0.79881, df = 111, p-value = 0.4261
+with(subset(allGCDs, trt_type=='K'), t.test(codom_RR, mu=0)) #t = 1.0349, df = 86, p-value = 0.3036
+with(subset(allGCDs, trt_type=='N*P'), t.test(codom_RR, mu=0)) #t = -2.0242, df = 118, p-value = 0.04521 ***
+with(subset(allGCDs, trt_type=='mult_nutrient'), t.test(codom_RR, mu=0)) #t = -2.7949, df = 224, p-value = 0.005642 ***
+with(subset(allGCDs, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.8419, df = 280, p-value = 0.004814 ***
 
-#figure -- showing time effect
-trtBars<-allGCDs%>%
-  group_by(trt_type, treatment_year)%>%
-  summarise(mean=mean(codom_RR),
-            n=length(codom_RR),
-            sd=sd(codom_RR))%>%
-  ungroup()%>%
-  mutate(se=sd/sqrt(n))
-
-overallBar<-allGCDs%>%
-  group_by(treatment_year)%>%
-  summarise(mean=mean(codom_RR),
-            n=length(codom_RR),
-            sd=sd(codom_RR))%>%
-  ungroup()%>%
-  mutate(se=sd/sqrt(n))%>%
-  mutate(trt_type='overall')
-
-barGraph <- rbind(overallBar, trtBars)
-
-ggplot(data=subset(barGraph, trt_type=='overall'), aes(x=treatment_year, y=mean)) +
-  geom_point() +
-  geom_smooth(method='lm', color='black') +
-  xlab("") +
-  ylab("ln RR (Number of Codominants)")
-
-ggplot(data=subset(barGraph, trt_type %in% c('N', 'herb_removal', 'temp', 'mult_nutrient', 'overall')), aes(x=treatment_year, y=mean, color=trt_type)) +
-  geom_point() +
-  geom_smooth(method='lm') +
-  xlab("") +
-  ylab("ln RR (Number of Codominants)") +
-  scale_color_manual(limits = c('overall', 'temp', 'N', 'mult_nutrient', 'herb_removal'),
-                     labels = c('overall', 'warming', 'N', 'mult. nutrients', 'herbivore rem.'),
-                     values=c('black', '#F1C646', '#769370', '#769370', '#F17236'))
-
-#figure -- averaging over time effect
+#figure
 trtBars<-allGCDs%>%
   group_by(trt_type)%>%
   summarise(mean=mean(codom_RR),
@@ -502,23 +486,22 @@ barGraph <- rbind(overallBar, trtBars)
 
 ggplot(data=barGraph, aes(x=trt_type, y=mean, fill=trt_type)) +
   geom_bar(position=position_dodge(), stat="identity") +
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),position=position_dodge(0.9), width=0.2) +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se),position=position_dodge(0.9), width=0.2) +
   xlab("") +
   ylab("ln RR (Number of Codominants)") +
-  scale_x_discrete(limits = c('overall', 'drought', 'irr', 'temp', 'N', 'P', 'K', 'N*P', 'mult_nutrient', 'herb_removal'),
-                   labels = c('overall\n(5116)', 'drt\n(90)', 'irr\n(170)', 'warm\n(89)', 'N\n(5116)', 'P\n(634)', 'K\n(508)', 'NP\n(639)', 'mult\nnut\n(1390)', 'herb\nrem\n(868)')) +
-  scale_fill_manual(values=c('#F1C646', '#F17236', '#F1C646', '#769370', '#769370', '#769370', '#769370', 'black', '#769370', '#F1C646')) +
+  scale_x_discrete(limits = c('overall', 'drought', 'irr', 'N', 'P', 'K', 'N*P', 'mult_nutrient', 'herb_removal'),
+                   labels = c('overall\n(1019)', 'drt\n(22)', 'irr\n(27)', 'N\n(144)', 'P\n(111)', 'K\n(86)', 'NP\n(118)', 'mult\nnut\n(224)', 'herb\nrem\n(280)')) +
+  scale_fill_manual(values=c('#F1C646', '#F17236', '#F1C646', '#769370', '#769370', '#769370', '#769370', 'black', '#769370')) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
   # theme(axis.text.x=element_text(angle=45, hjust=1)) +
-  coord_cartesian(ylim=c(-0.18,0.05)) +
+  coord_cartesian(ylim=c(-0.35,0.25)) +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
   geom_vline(xintercept = 1.5, size = 1) +
-  geom_text(x=1, y=-0.07, label="*", size=8) +
-  geom_text(x=4, y=-0.17, label="*", size=8) +
-  geom_text(x=5, y=-0.09, label="*", size=8) +
-  geom_text(x=8, y=-0.09, label="*", size=8) +
-  geom_text(x=9, y=-0.13, label="*", size=8) +
-  geom_text(x=10, y=-0.1, label="*", size=8)
+  geom_text(x=1, y=-0.17, label="*", size=10) +
+  geom_text(x=4, y=-0.32, label="*", size=10) +
+  geom_text(x=7, y=-0.3, label="*", size=10) +
+  geom_text(x=8, y=-0.26, label="*", size=10) +
+  geom_text(x=9, y=-0.23, label="*", size=10)
 #export at 1000x600
 
 

@@ -209,6 +209,13 @@ ggarrange(MAPfig, MATfig, richnessFig, anppFig,
 #export at 1200x800
 
 
+#-----parameter space filled by corre and nutnet-----
+ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=MAT, y=MAP, color=database)) +
+  geom_point() +
+  scale_color_manual(values=c('#51BBB1', '#EA8B2F'))
+
+
+
 #-----plot-level drivers of co-dominance-----
 controlsPlot <- individualExperiments%>%
   mutate(keep=ifelse(database=='NutNet'&treatment_year==0, 1, ifelse(database %in% c('CoRRE', 'GEx') & trt_type=='control', 1, 0)))%>%
@@ -310,8 +317,7 @@ trtCodom <- individualExperiments%>%
   mutate(trt_type_2=ifelse(trt_type=='P'&p<10, 'P<10', ifelse(trt_type=='P'&p>=10, 'P>10', as.character(trt_type))))%>%
   select(database, site_code, project_name, community_type, trt_type, trt_type_2, treatment, treatment_year, plot_size_m2, codom_RR, n_levels, n, p, num_codominants, num_codominants_control)%>%
   #this includes all years for each site -- consider for later analyses what to do about time
-  
-  group_by(database, site_code, project_name, community_type, trt_type, treatment, plot_size_m2)%>%
+    group_by(database, site_code, project_name, community_type, trt_type, treatment, plot_size_m2)%>%
   mutate(max=max(codom_RR), min=min(codom_RR))%>%
   ungroup()%>%
   mutate(keep=ifelse(abs(min)>max, 'min', 'max'))%>%
@@ -341,16 +347,15 @@ check_model(codomNModel)
 anova(codomNModel) #CoRRE significantly lower effect than NutNet
 lsmeans(codomNModel, pairwise~as.factor(database), adjust="tukey")
 
-ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
-  geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
+ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean, fill=database)) +
+  geom_bar(position=position_dodge(), stat="identity") +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
   scale_x_discrete(limits=c('NutNet', 'CoRRE')) +
+  scale_fill_manual(values=c('#51BBB1', '#EA8B2F')) +
   coord_cartesian(ylim=c(-0.33, 0.05)) +
-  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
-  # geom_text(x=1, y=-0.32, label="a", size=6) +
-  geom_text(x=1, y=-0.33, label="*", size=10) 
-  # geom_text(x=2, y=0.075, label="b", size=6)
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20), legend.position='none') +
+  geom_text(x=1, y=-0.33, label="*", size=10)
 #export at 400x600
 
 
@@ -362,14 +367,15 @@ check_model(codomNModel)
 anova(codomNModel) #no difference in N effect between CoRRE and NutNet when N added is >=10 g/m2
 lsmeans(codomNModel, pairwise~as.factor(database_2), adjust="tukey")
 
-ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database_2")), aes(x=database_2, y=mean)) +
-  geom_bar(position=position_dodge(), stat="identity", fill='#769370') +
+ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database_2")), aes(x=database_2, y=mean, fill=database_2)) +
+  geom_bar(position=position_dodge(), stat="identity") +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
   scale_x_discrete(limits=c('NutNet', 'CoRRE n>=10', 'CoRRE n<10'),
                    labels=c('NutNet\nN=10 gm2', 'CoRRE\nN>10 gm2', 'CoRRE\nN<10 gm2')) +
   coord_cartesian(ylim=c(-0.5, 0.3)) +
-  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
+  scale_fill_manual(values=c('#51BBB1', '#51BBB1', '#EA8B2F')) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20), legend.position='none') +
   geom_text(x=1, y=-0.33, label="a", size=6) +
   geom_text(x=1, y=-0.34, label="   *", size=8) +
   geom_text(x=2, y=-0.45, label="a", size=6) +
@@ -502,10 +508,6 @@ ggplot(data=randomDraws, aes(x=sample, y=mean_codom_RR, color=database)) +
 #export 800x600
 
 
-#-----parameter space filled by corre and nutnet-----
-ggplot(data=)
-
-
 #-----P thresholds-----
 summary(codomPthresholdModel <- lme(codom_RR ~ p, 
                                     data=subset(subsetTrtCodom, trt_type=='P'), 
@@ -572,6 +574,7 @@ lsmeans(codomGCD, pairwise~as.factor(trt_type), adjust="tukey")
 
 #difference from 0 for each treatment type
 with(data=allGCDs, t.test(codom_RR, mu=0)) #t = -4.7436, df = 1019, p-value = 2.398e-06 ***
+# with(subset(allGCDs, trt_type=='CO2'), t.test(codom_RR, mu=0)) #t = 2.5845, df = 10, p-value = 0.02721 ***
 with(subset(allGCDs, trt_type=='drought'), t.test(codom_RR, mu=0)) #t = -0.19633, df = 22, p-value = 0.8462
 with(subset(allGCDs, trt_type=='irr'), t.test(codom_RR, mu=0)) #t = -0.32187, df = 27, p-value = 0.75
 # with(subset(allGCDs, trt_type=='temp'), t.test(codom_RR, mu=0)) #t = -0.88141, df = 17, p-value = 0.3904

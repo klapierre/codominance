@@ -36,12 +36,10 @@ nutnet <- read.csv('NutNet\\comb-by-plot-clim-soil-diversity-07-December-2020.cs
 latLong <- rbind(nutnet, gex, corre)
 
 
-#-----making map-----
+#-----making map - all three databases-----
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
 z.pal <- wes_palette("Darjeeling1", 3, type = "discrete")
-
-# png(filename = "Map of Control Data Distribution_Gridcell level 3 Datasets.png", width=14, height=7, units="in", res=300)
 
 ggplot(data=world) +
   theme(panel.background=element_rect(fill="aliceblue", color="aliceblue")) +
@@ -56,3 +54,19 @@ ggplot(data=world) +
   xlab(element_blank())
 #export at 1000x700
 
+
+#-----making map - NutNet and CoRRE only-----
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+ggplot(data=world) +
+  theme(panel.background=element_rect(fill="white", color="white")) +
+  theme(text=element_text(size=20, colour="black"),
+        axis.text.x=element_text(size=20, colour="black"),
+        axis.text.y=element_text(size=20, colour="black")) +
+  geom_sf(color="white", fill="lightgrey") +
+  geom_point(data=subset(latLong, database %in% c('CoRRE (107 exp at 54 sites)', 'NutNet (117 sites)')), mapping=aes(x=longitude, y=latitude, fill=database), size=3, shape=21) +
+  scale_fill_manual(values = c('#51BBB1', '#EA8B2F')) +
+  theme(legend.position = "top", legend.title=element_blank()) +
+  ylab(element_blank()) +
+  xlab(element_blank())
+#export at 1000x700

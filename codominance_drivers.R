@@ -410,6 +410,102 @@ ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR)) +
 #export at 800x600
 
 
+#random draws to illustrate gain in power from including both databases
+#make a new dataframe with just N>=10 g/m2
+codomNdrawsBoth <- codomN%>%
+  filter(database_2 %in% c('NutNet', 'CoRRE n>=10'))%>%
+  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+
+#makes an empty dataframe
+randomDrawsBoth=data.frame(row.names=1) 
+
+#calculate effect size means
+for(i in 1:length(codomNdrawsBoth$exp_unit)) {
+  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsBoth$codom_RR, size=i, replace=F))))%>%
+    mutate(sample=i, database='Combined')
+  
+  colnames(pull)[1] <- 'mean_codom_RR'
+  
+  randomDrawsBoth=rbind(pull, randomDrawsBoth)
+}
+
+#nutnet only
+codomNdrawsNutNet <- codomN%>%
+  filter(database_2 %in% c('NutNet'))%>%
+  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+
+#makes an empty dataframe
+randomDrawsNutNet=data.frame(row.names=1) 
+
+#calculate effect size means
+for(i in 1:length(codomNdrawsNutNet$exp_unit)) {
+  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsNutNet$codom_RR, size=i, replace=F))))%>%
+    mutate(sample=i, database='NutNet')
+  
+  colnames(pull)[1] <- 'mean_codom_RR'
+  
+  randomDrawsNutNet=rbind(pull, randomDrawsNutNet)
+}
+
+#corre only
+codomNdrawsCoRRE <- codomN%>%
+  filter(database_2 %in% c('CoRRE n>=10'))%>%
+  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+
+#makes an empty dataframe
+randomDrawsCoRRE=data.frame(row.names=1) 
+
+#calculate effect size means
+for(i in 1:length(codomNdrawsCoRRE$exp_unit)) {
+  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsCoRRE$codom_RR, size=i, replace=F))))%>%
+    mutate(sample=i, database='CoRRE')
+  
+  colnames(pull)[1] <- 'mean_codom_RR'
+  
+  randomDrawsCoRRE=rbind(pull, randomDrawsCoRRE)
+}
+
+
+randomDraws <- rbind(randomDrawsBoth, randomDrawsNutNet, randomDrawsCoRRE)
+
+#corre only
+ggplot(data=subset(randomDraws, database=='CoRRE'), aes(x=sample, y=mean_codom_RR, color=database)) +
+  geom_point() +
+  scale_color_manual(values=c('#51BBB1')) +
+  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+  geom_hline(yintercept=0, color='black', size=1) +
+  coord_cartesian(xlim=c(0,150))
+#export 800x600
+
+#corre and nutnet
+ggplot(data=subset(randomDraws, database %in% c('CoRRE', 'NutNet')), aes(x=sample, y=mean_codom_RR, color=database)) +
+  geom_point() +
+  scale_color_manual(values=c('#51BBB1', '#EA8B2F')) +
+  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+  geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
+  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+  geom_hline(yintercept=0, color='black', size=1) +
+  coord_cartesian(xlim=c(0,150))
+#export 800x600
+
+#combined
+ggplot(data=randomDraws, aes(x=sample, y=mean_codom_RR, color=database)) +
+  geom_point() +
+  scale_color_manual(values=c('black', '#51BBB1', '#EA8B2F')) +
+  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+  geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
+  geom_hline(yintercept=0, color='black', size=1)  +
+  geom_hline(yintercept=-0.1913173, color='black', size=3) +
+  coord_cartesian(xlim=c(0,150))
+#export 800x600
+
+
+#-----parameter space filled by corre and nutnet-----
+ggplot(data=)
+
+
 #-----P thresholds-----
 summary(codomPthresholdModel <- lme(codom_RR ~ p, 
                                     data=subset(subsetTrtCodom, trt_type=='P'), 
@@ -420,14 +516,34 @@ ggplot(data=subset(subsetTrtCodom, trt_type=='P'), aes(x=p, y=codom_RR)) + geom_
 
 
 #-----comparing herbivore removal effects in GEx and NutNet-----
-summary(codomHerb <- lme(codom_RR ~ as.factor(database), 
+summary(codomHerbModel <- lme(codom_RR ~ as.factor(database), 
                          data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), 
                          random=~1|site_code))
-check_model(codomHerb)
-anova(codomHerb) #no difference in N effect between CoRRE and NutNet
-lsmeans(codomHerb, pairwise~as.factor(database), adjust="tukey")
+check_model(codomHerbModel)
+anova(codomHerbModel) #no difference in herb effect between CoRRE and NutNet
+lsmeans(codomHerbModel, pairwise~as.factor(database), adjust="tukey")
 
 ggplot(data=barGraphStats(data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
+  geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
+  scale_x_discrete(limits=c('NutNet', 'GEx')) + ylab("ln RR (Number of Codominants)") +
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
+  geom_text(x=2, y=-0.27, label="*", size=10) 
+#export at 400x600
+
+#herbivore type
+codomHerb <- subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx'))%>%
+  left_join(read.csv('nutnet//nutnet_grazer types.csv'))%>%
+  mutate(large_grazers=ifelse(database=='GEx', 'yes', as.character(large_grazers)))
+
+summary(codomHerbModel <- lme(codom_RR ~ as.factor(database), 
+                         data=subset(codomHerb, large_grazers=='yes'), 
+                         random=~1|site_code))
+check_model(codomHerbModel)
+anova(codomHerbModel) #no difference in herb effect between CoRRE and NutNet
+lsmeans(codomHerbModel, pairwise~as.factor(database), adjust="tukey")
+
+ggplot(data=barGraphStats(data=subset(codomHerb, large_grazers=='yes'), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   scale_x_discrete(limits=c('NutNet', 'GEx')) + ylab("ln RR (Number of Codominants)") +

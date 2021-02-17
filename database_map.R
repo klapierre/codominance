@@ -81,7 +81,7 @@ ggplot(data=world) +
         axis.text.x=element_text(size=20, colour="black"),
         axis.text.y=element_text(size=20, colour="black")) +
   geom_sf(color="white", fill="lightgrey") +
-  geom_point(data=subset(latLong, site_code %in% c('AZI', 'CUL', 'IMGERS', 'KUFS', 'NWT', 'SVA', 'YMN')), mapping=aes(x=longitude, y=latitude), size=3, shape=21, fill='#51BBB1') +
+  geom_point(data=subset(latLong, site_code %in% c('AZI', 'CUL', 'IMGERS', 'KUFS', 'NWT', 'SVA', 'YMN')), mapping=aes(x=longitude, y=latitude), size=5, shape=21, fill='#51BBB1') +
   theme(legend.position = 'none') +
   ylab(element_blank()) +
   xlab(element_blank())

@@ -132,6 +132,8 @@ expInfo <- individualExperiments%>%
   unique()
 
 
+
+
 #-----site-level drivers of codominance-----
 nutnetControls <- individualExperiments%>%
   filter(database=='NutNet', treatment_year==0) #just pre-treatment for NutNet, so max number of plots can be included
@@ -146,9 +148,17 @@ controlsIndExp <- individualExperiments%>%
   summarise(num_codominants_mean=mean(num_codominants_temporal), num_codominants_var=var(num_codominants_temporal), Evar_mean=mean(Evar_temporal), Evar_var=var(Evar_temporal), richness_mean=mean(richness_temporal), richness_var=mean(richness_temporal))%>%
   ungroup()%>%
   left_join(expInfo)%>%
-  mutate(codominance=ifelse(num_codominants_mean<=1.5, 'monodominance', ifelse(num_codominants_mean>1.5&num_codominants_mean<=2.5, '2 codominants', ifelse(num_codominants_mean>2.5&num_codominants_mean<=3.5, '3 codominants', 'even'))))%>%
+  mutate(codominance=ifelse(num_codominants_mean<=1, 'monodominance', ifelse(num_codominants_mean>1&num_codominants_mean<=2, '2 codominants', ifelse(num_codominants_mean>2&num_codominants_mean<=3, '3 codominants', 'even'))))%>%
   mutate(num_codominants_restricted=ifelse(num_codominants_mean>5, 5, num_codominants_mean))%>%
   mutate(codom_proportion=num_codominants_mean/richness_mean)
+
+
+
+#-----incidence of codom in corre and nutnet-----
+ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=num_codominants_restricted)) +
+  geom_histogram(binwidth=1, fill='white', color='black') +
+  xlab('Number of Codominants') + ylab('Count') +
+  coord_cartesian(ylim=c(0,200))
 
 
 
@@ -210,9 +220,9 @@ ggarrange(MAPfig, MATfig, richnessFig, anppFig,
 
 
 #-----parameter space filled by corre and nutnet-----
-ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=MAT, y=MAP, color=database)) +
-  geom_point() +
-  scale_color_manual(values=c('#51BBB1', '#EA8B2F'))
+ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=num_codominants_restricted)) +
+  geom_density(binwidth=1, fill='white', color='black') +
+  ylab('Count') + xlab('Number of Codominants')
 
 
 
@@ -327,9 +337,7 @@ trtCodom <- individualExperiments%>%
 
 subsetTrtCodom <- trtCodom%>%
   filter(!is.na(plot_size_m2) & !is.na(trt_type) & !is.na(codom_RR) &
-           trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'K'))
-
-
+           trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'K', 'mult_nutrient*herb_removal'))
 
 
 #-----comparing N effects in CoRRE and NutNet-----
@@ -584,6 +592,7 @@ with(subset(allGCDs, trt_type=='K'), t.test(codom_RR, mu=0)) #t = 1.0349, df = 8
 with(subset(allGCDs, trt_type=='N*P'), t.test(codom_RR, mu=0)) #t = -2.0242, df = 118, p-value = 0.04521 ***
 with(subset(allGCDs, trt_type=='mult_nutrient'), t.test(codom_RR, mu=0)) #t = -2.7949, df = 224, p-value = 0.005642 ***
 with(subset(allGCDs, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.8419, df = 280, p-value = 0.004814 ***
+with(subset(allGCDs, trt_type=='mult_nutrient*herb_removal'), t.test(codom_RR, mu=0)) #t = -2.7179, df = 102, p-value = 0.007722 ***
 
 #figure
 trtBars<-allGCDs%>%
@@ -622,6 +631,66 @@ ggplot(data=barGraph, aes(x=trt_type, y=mean, fill=trt_type)) +
   geom_text(x=8, y=-0.26, label="*", size=10) +
   geom_text(x=9, y=-0.23, label="*", size=10)
 #export at 1000x600
+
+
+
+
+#reduced niche dimensionality
+trtBars<-allGCDs%>%
+  group_by(trt_type)%>%
+  summarise(mean=mean(codom_RR),
+            n=length(codom_RR),
+            sd=sd(codom_RR))%>%
+  ungroup()%>%
+  mutate(se=sd/sqrt(n))
+
+overallBar<-allGCDs%>%
+  filter(trt_type %in% c('N', 'herb_removal', 'N*P', 'mult_nutrient', 'mult_nutrient*herb_removal'))%>%
+  summarise(mean=mean(codom_RR),
+            n=length(codom_RR),
+            sd=sd(codom_RR))%>%
+  mutate(se=sd/sqrt(n))%>%
+  mutate(trt_type='overall')
+
+barGraph <- rbind(overallBar, trtBars)
+
+ggplot(data=subset(barGraph, trt_type %in% c('overall', 'herb_removal', 'N', 'N*P', 'mult_nutrient', 'mult_nutrient*herb_removal')), aes(x=trt_type, y=mean, fill=trt_type)) +
+  geom_bar(position=position_dodge(), stat="identity") +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits = c('overall', 'herb_removal', 'N', 'N*P', 'mult_nutrient', 'mult_nutrient*herb_removal'),
+                   labels = c('overall\n(873)', 'herb\nrem\n(280)', 'N\n(144)', 'NP\n(118)', 'mult\nnut\n(224)', 'mult nut*\nherb rem\n(103)')) +
+  scale_fill_manual(values=c('#F1C646', '#769370', '#F17236', '#769370', '#769370', 'darkgrey')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  # theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  coord_cartesian(ylim=c(-0.35,0)) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
+  geom_vline(xintercept = 1.5, size = 1) +
+  geom_text(x=1, y=-0.23, label="*", size=10) +
+  geom_text(x=2, y=-0.24, label="*", size=10) +
+  geom_text(x=3, y=-0.33, label="*", size=10) +
+  geom_text(x=4, y=-0.31, label="*", size=10) +
+  geom_text(x=5, y=-0.27, label="*", size=10) +
+  geom_text(x=6, y=-0.37, label="*", size=10)
+#export at 1000x600
+
+
+#nut added and herb removal only
+ggplot(data=subset(barGraph, trt_type %in% c('herb_removal', 'N')), aes(x=trt_type, y=mean, fill=trt_type)) +
+  geom_bar(position=position_dodge(), stat="identity") +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se),position=position_dodge(0.9), width=0.2) +
+  xlab("") +
+  ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits = c('N', 'herb_removal'),
+                   labels = c('N\n(144)', 'herb\nrem\n(280)')) +
+  scale_fill_manual(values=c('#F17236', '#769370')) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none") +
+  coord_cartesian(ylim=c(-0.35,0)) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
+  geom_text(x=1, y=-0.33, label="*", size=10) +
+  geom_text(x=2, y=-0.24, label="*", size=10)
+#export at 400x600
 
 
 #difference in codom
@@ -678,3 +747,89 @@ herbRemFig <- ggplot(data=barGraphStats(data=subset(overall, trt_type=='herb_rem
 ggarrange(overallFig, warmFig, nFig, multNutFig, herbRemFig,
           ncol = 5, nrow = 1)
 #export at 1200x600
+
+
+
+
+#-----are the species that dominate with herb removal the same as those that dominate with N addition-----
+#predict, different species win under these scenarios
+
+#find datasets with both trt independantly
+nAdded <- trtCodom%>%
+  filter(n>0, trt_type %in% c('N','N*P', 'mult_nutrient'))%>%
+  select(database, site_code, project_name, community_type)%>%
+  unique()%>%
+  mutate(N_add=1)
+
+herbRem <- trtCodom%>%
+  filter(trt_type %in% c('herb_removal'))%>%
+  select(database, site_code, project_name, community_type)%>%
+  unique()%>%
+  mutate(herb_remove=1)
+
+bothNaddHerbRem <- herbRem%>%
+  left_join(nAdded)%>%
+  mutate(both_trt=N_add+herb_remove)%>%
+  filter(both_trt==2)%>%
+  left_join()
+
+sameSppCorre <- read.csv('CoRRE\\corre_codominants_list_01282021.csv')%>%
+  filter(site_code %in% c('KLU', 'NIN', 'TRA'))%>%
+  left_join(read.csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
+  select(site_code, project_name, community_type, treatment_year, plot_id, trt_type, genus_species, relcov)%>%
+  left_join(trtCodom)%>%
+  filter(!is.na(database))%>%
+  filter(trt_type %in% c('N', 'N*P', 'mult_nutrient', 'herb_removal'))%>%
+  select(site_code, project_name, community_type, treatment_year, plot_id, trt_type, num_codominants, genus_species, relcov, codom_RR)%>%
+  group_by(site_code, project_name, community_type, trt_type, num_codominants, genus_species, codom_RR)%>%
+  summarise(rel_cov=mean(relcov))%>%
+  ungroup()%>%
+  group_by(site_code, project_name, community_type, trt_type, num_codominants, codom_RR)%>%
+  mutate(rank = as.numeric(order(order(rel_cov, decreasing=TRUE))))%>%
+  ungroup()%>%
+  filter(rank==1) #should be number of codominants?
+#6 of 6 cases, different species rank 1
+
+sameSppNutNet <- read.csv('nutnet\\NutNet_codominants_list_plot_01292021.csv')%>%
+  left_join(bothNaddHerbRem)%>%
+  filter(both_trt==2)%>%
+  mutate(database='NutNet', project_name='NA', community_type='NA')%>%
+  mutate(trt_type=ifelse(year_trt<1, 'control', ifelse(trt=='Control', 'control', ifelse(trt=='Fence', 'herb_removal', ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(trt=='N', 'N', ifelse(trt=='P', 'P', ifelse(trt=='K', 'K', ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
+  rename(plot_id=plot, calendar_year=year, treatment_year=year_trt, treatment=trt)%>%
+  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, num_codominants, genus_species, relcov)%>%
+  select(site_code, project_name, community_type, treatment_year, plot_id, trt_type, genus_species, relcov)%>%
+  left_join(trtCodom)%>%
+  filter(!is.na(database))%>%
+  filter(trt_type %in% c('N', 'herb_removal'))%>%
+  select(site_code, project_name, community_type, treatment_year, plot_id, trt_type, num_codominants, genus_species, relcov, codom_RR)%>%
+  group_by(site_code, project_name, community_type, trt_type, num_codominants, genus_species, codom_RR)%>%
+  summarise(rel_cov=mean(relcov))%>%
+  ungroup()%>%
+  group_by(site_code, project_name, community_type, trt_type, num_codominants, codom_RR)%>%
+  mutate(rank = as.numeric(order(order(rel_cov, decreasing=TRUE))))%>%
+  ungroup()%>%
+  filter(rank==1)
+
+herbRemNutNet <- sameSppNutNet%>%
+  filter(trt_type=='herb_removal')%>%
+  select(site_code, genus_species)%>%
+  mutate(herb_rem=1)%>%
+  unique()
+
+nAddNutNet <- sameSppNutNet%>%
+  filter(trt_type=='N')%>%
+  select(site_code, genus_species)%>%
+  mutate(mult_nut=1)%>%
+  unique()
+
+sameSppNutNet2 <- herbRemNutNet%>%
+  full_join(nAddNutNet)%>%
+  mutate(same=herb_rem+mult_nut)%>%
+  mutate_all(~replace(., is.na(.), 0))%>%
+  group_by(site_code)%>%
+  summarise(same_spp=mean(same))%>%
+  ungroup()
+#42 of 72 cases, different species rank 1
+
+
+#different species in N added and herb remove 48 of 78 cases = 61.5% of the time, different species dominate in the end

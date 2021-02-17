@@ -155,11 +155,13 @@ controlsIndExp <- individualExperiments%>%
 
 
 #-----incidence of codom in corre and nutnet-----
-ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=num_codominants_restricted)) +
-  geom_histogram(binwidth=1, fill='white', color='black') +
+ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet', 'GEx')), aes(x=codominance)) +
+  geom_histogram(fill='white', color='black', stat='count') +
   xlab('Number of Codominants') + ylab('Count') +
-  coord_cartesian(ylim=c(0,200))
-
+  coord_cartesian(ylim=c(0,300)) +
+  scale_x_discrete(limits=c('monodominance', '2 codominants', '3 codominants', 'even'),
+                   labels=c('1', '2', '3', '4+'))
+#export at 400x600
 
 
 #-----model - continuous co-dominance metrics-----
@@ -344,7 +346,9 @@ subsetTrtCodom <- trtCodom%>%
 codomN <- subsetTrtCodom%>%
   filter(trt_type=='N')%>%
   left_join(correNlevels)%>%
-  mutate(database_2=ifelse(database=='NutNet', 'NutNet', ifelse(database=='CoRRE'&n<10, 'CoRRE n<10', 'CoRRE n>=10')))
+  mutate(database_2=ifelse(database=='NutNet', 'NutNet', ifelse(database=='CoRRE'&n<10, 'CoRRE n<10', 'CoRRE n>=10')))%>%
+  mutate(database_3=ifelse(database_2 %in% c('NutNet', 'CoRRE n>=10'),  'N>=10', 'N<10'))%>%
+  mutate(n_levels_cat=ifelse(n_levels>1, 'yes', 'no'))
 
 
 #is there a database effect?
@@ -391,6 +395,19 @@ ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("dat
   geom_text(x=3, y=0.3, label="b", size=6)
 #export 600x650
 
+#>10 gm2 vs less
+ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database_3")), aes(x=database_3, y=mean, fill=database_3)) +
+  geom_bar(position=position_dodge(), stat="identity") +
+  geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
+  ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits=c('N>=10', 'N<10'),
+                   labels=c('N>10 gm2', 'N<10 gm2')) +
+  coord_cartesian(ylim=c(-0.5, 0.3)) +
+  scale_fill_manual(values=c('#51BBB1', 'darkgrey')) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20), legend.position='none') +
+  geom_text(x=1, y=-0.34, label="   *", size=8)
+#export 400x600
+
 
 #N levels for threshold
 summary(codomNthresholdModel <- lme(codom_RR ~ log(n), 
@@ -417,103 +434,117 @@ anova(codomNthresholdModel) #N level affects loss of codom spp
 # #export at 600x400
 
 ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR)) +
-  geom_point(color='#769370', size=3) +
-  geom_smooth(se=F, method='gam', color='#769370', size=2) +
+  geom_point(color='darkgrey', size=3) +
+  geom_smooth(se=F, method='gam', color='darkgrey', size=2) +
   xlab(expression(paste('Nitrogen (g',  ~ m ^ -2, ')'))) + ylab("ln RR (Number of Codominants)") +
-  geom_hline(yintercept=0)
+  geom_hline(yintercept=0) +
+  coord_cartesian(ylim=c(-1.2,1.2))
+#export at 800x600
+
+nLevelsYes <- codomN%>%filter(n_levels>1)%>%mutate(n_levels_cat='all')
+nLevelsGraph <- codomN%>%mutate(n_levels_cat=ifelse(n_levels_cat=='no', 'all', n_levels_cat))%>%rbind(nLevelsYes)
+
+ggplot(data=subset(nLevelsGraph, database=='CoRRE'&n<60), aes(x=n, y=codom_RR, color=n_levels_cat)) +
+  geom_point(size=3) +
+  geom_smooth(se=F, method='gam', size=2) +
+  scale_color_manual(values=c('#51BBB1','darkgrey')) +
+  xlab(expression(paste('Nitrogen (g',  ~ m ^ -2, ')'))) + ylab("ln RR (Number of Codominants)") +
+  geom_hline(yintercept=0) +
+  theme(legend.position='none') +
+  coord_cartesian(ylim=c(-1.2,1.2))
 #export at 800x600
 
 
-#random draws to illustrate gain in power from including both databases
-#make a new dataframe with just N>=10 g/m2
-codomNdrawsBoth <- codomN%>%
-  filter(database_2 %in% c('NutNet', 'CoRRE n>=10'))%>%
-  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
-
-#makes an empty dataframe
-randomDrawsBoth=data.frame(row.names=1) 
-
-#calculate effect size means
-for(i in 1:length(codomNdrawsBoth$exp_unit)) {
-  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsBoth$codom_RR, size=i, replace=F))))%>%
-    mutate(sample=i, database='Combined')
-  
-  colnames(pull)[1] <- 'mean_codom_RR'
-  
-  randomDrawsBoth=rbind(pull, randomDrawsBoth)
-}
-
-#nutnet only
-codomNdrawsNutNet <- codomN%>%
-  filter(database_2 %in% c('NutNet'))%>%
-  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
-
-#makes an empty dataframe
-randomDrawsNutNet=data.frame(row.names=1) 
-
-#calculate effect size means
-for(i in 1:length(codomNdrawsNutNet$exp_unit)) {
-  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsNutNet$codom_RR, size=i, replace=F))))%>%
-    mutate(sample=i, database='NutNet')
-  
-  colnames(pull)[1] <- 'mean_codom_RR'
-  
-  randomDrawsNutNet=rbind(pull, randomDrawsNutNet)
-}
-
-#corre only
-codomNdrawsCoRRE <- codomN%>%
-  filter(database_2 %in% c('CoRRE n>=10'))%>%
-  mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
-
-#makes an empty dataframe
-randomDrawsCoRRE=data.frame(row.names=1) 
-
-#calculate effect size means
-for(i in 1:length(codomNdrawsCoRRE$exp_unit)) {
-  pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsCoRRE$codom_RR, size=i, replace=F))))%>%
-    mutate(sample=i, database='CoRRE')
-  
-  colnames(pull)[1] <- 'mean_codom_RR'
-  
-  randomDrawsCoRRE=rbind(pull, randomDrawsCoRRE)
-}
-
-
-randomDraws <- rbind(randomDrawsBoth, randomDrawsNutNet, randomDrawsCoRRE)
-
-#corre only
-ggplot(data=subset(randomDraws, database=='CoRRE'), aes(x=sample, y=mean_codom_RR, color=database)) +
-  geom_point() +
-  scale_color_manual(values=c('#51BBB1')) +
-  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
-  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
-  geom_hline(yintercept=0, color='black', size=1) +
-  coord_cartesian(xlim=c(0,150))
-#export 800x600
-
-#corre and nutnet
-ggplot(data=subset(randomDraws, database %in% c('CoRRE', 'NutNet')), aes(x=sample, y=mean_codom_RR, color=database)) +
-  geom_point() +
-  scale_color_manual(values=c('#51BBB1', '#EA8B2F')) +
-  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
-  geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
-  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
-  geom_hline(yintercept=0, color='black', size=1) +
-  coord_cartesian(xlim=c(0,150))
-#export 800x600
-
-#combined
-ggplot(data=randomDraws, aes(x=sample, y=mean_codom_RR, color=database)) +
-  geom_point() +
-  scale_color_manual(values=c('black', '#51BBB1', '#EA8B2F')) +
-  xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
-  geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
-  geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
-  geom_hline(yintercept=0, color='black', size=1)  +
-  geom_hline(yintercept=-0.1913173, color='black', size=3) +
-  coord_cartesian(xlim=c(0,150))
-#export 800x600
+# #random draws to illustrate gain in power from including both databases
+# #make a new dataframe with just N>=10 g/m2
+# codomNdrawsBoth <- codomN%>%
+#   filter(database_2 %in% c('NutNet', 'CoRRE n>=10'))%>%
+#   mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+# 
+# #makes an empty dataframe
+# randomDrawsBoth=data.frame(row.names=1) 
+# 
+# #calculate effect size means
+# for(i in 1:length(codomNdrawsBoth$exp_unit)) {
+#   pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsBoth$codom_RR, size=i, replace=F))))%>%
+#     mutate(sample=i, database='Combined')
+#   
+#   colnames(pull)[1] <- 'mean_codom_RR'
+#   
+#   randomDrawsBoth=rbind(pull, randomDrawsBoth)
+# }
+# 
+# #nutnet only
+# codomNdrawsNutNet <- codomN%>%
+#   filter(database_2 %in% c('NutNet'))%>%
+#   mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+# 
+# #makes an empty dataframe
+# randomDrawsNutNet=data.frame(row.names=1) 
+# 
+# #calculate effect size means
+# for(i in 1:length(codomNdrawsNutNet$exp_unit)) {
+#   pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsNutNet$codom_RR, size=i, replace=F))))%>%
+#     mutate(sample=i, database='NutNet')
+#   
+#   colnames(pull)[1] <- 'mean_codom_RR'
+#   
+#   randomDrawsNutNet=rbind(pull, randomDrawsNutNet)
+# }
+# 
+# #corre only
+# codomNdrawsCoRRE <- codomN%>%
+#   filter(database_2 %in% c('CoRRE n>=10'))%>%
+#   mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
+# 
+# #makes an empty dataframe
+# randomDrawsCoRRE=data.frame(row.names=1) 
+# 
+# #calculate effect size means
+# for(i in 1:length(codomNdrawsCoRRE$exp_unit)) {
+#   pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsCoRRE$codom_RR, size=i, replace=F))))%>%
+#     mutate(sample=i, database='CoRRE')
+#   
+#   colnames(pull)[1] <- 'mean_codom_RR'
+#   
+#   randomDrawsCoRRE=rbind(pull, randomDrawsCoRRE)
+# }
+# 
+# 
+# randomDraws <- rbind(randomDrawsBoth, randomDrawsNutNet, randomDrawsCoRRE)
+# 
+# #corre only
+# ggplot(data=subset(randomDraws, database=='CoRRE'), aes(x=sample, y=mean_codom_RR, color=database)) +
+#   geom_point() +
+#   scale_color_manual(values=c('#51BBB1')) +
+#   xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+#   geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+#   geom_hline(yintercept=0, color='black', size=1) +
+#   coord_cartesian(xlim=c(0,150))
+# #export 800x600
+# 
+# #corre and nutnet
+# ggplot(data=subset(randomDraws, database %in% c('CoRRE', 'NutNet')), aes(x=sample, y=mean_codom_RR, color=database)) +
+#   geom_point() +
+#   scale_color_manual(values=c('#51BBB1', '#EA8B2F')) +
+#   xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+#   geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
+#   geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+#   geom_hline(yintercept=0, color='black', size=1) +
+#   coord_cartesian(xlim=c(0,150))
+# #export 800x600
+# 
+# #combined
+# ggplot(data=randomDraws, aes(x=sample, y=mean_codom_RR, color=database)) +
+#   geom_point() +
+#   scale_color_manual(values=c('black', '#51BBB1', '#EA8B2F')) +
+#   xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
+#   geom_hline(yintercept=-0.242552, color='#51BBB1', size=2) +
+#   geom_hline(yintercept=-0.1724667, color='#EA8B2F', size=2) +
+#   geom_hline(yintercept=0, color='black', size=1)  +
+#   geom_hline(yintercept=-0.1913173, color='black', size=3) +
+#   coord_cartesian(xlim=c(0,150))
+# #export 800x600
 
 
 #-----P thresholds-----

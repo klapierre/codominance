@@ -39,17 +39,16 @@ latLong <- rbind(nutnet, gex, corre)
 #-----making map - all three databases-----
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
-z.pal <- wes_palette("Darjeeling1", 3, type = "discrete")
-
 ggplot(data=world) +
-  theme(panel.background=element_rect(fill="aliceblue", color="aliceblue")) +
+  theme(panel.background=element_rect(fill="white", color="white")) +
   theme(text=element_text(size=20, colour="black"),
         axis.text.x=element_text(size=20, colour="black"),
         axis.text.y=element_text(size=20, colour="black")) +
-  geom_sf(color="black", fill="antiquewhite") +
+  geom_sf(color="white", fill="lightgrey") +
   geom_point(data=latLong, mapping=aes(x=longitude, y=latitude, fill=database), size=3, shape=21) +
-  scale_fill_manual(values = z.pal) +
+  scale_fill_manual(values = c('#51BBB1', '#BAC0F5', '#EA8B2F')) +
   theme(legend.position = "top", legend.title=element_blank()) +
+  guides(colour = guide_legend(override.aes = list(size=100))) +
   ylab(element_blank()) +
   xlab(element_blank())
 #export at 1000x700

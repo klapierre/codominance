@@ -10,10 +10,10 @@ library(codyn)
 library(tidyverse)
 
 #kim's laptop
-setwd('C:\\Users\\lapie\\Dropbox (Smithsonian)\\working groups\\GEx working groups\\SEV 2019\\codominance\\data\\nutnet')
+setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\\\nutnet')
 
 ###read in data
-nutnet <- read.csv('full-cover-07-December-2020.csv')%>%
+nutnet <- read.csv('full-cover_2023-11-07.csv')%>%
   rename(cover=max_cover, genus_species=Taxon)%>%
   filter(live==1, !(genus_species %in% c('GROUND', 'OTHER LITTER', 'OTHER ARISTIDA CONTORTA (DEAD)', 'OTHER SALSOLA KALI (DEAD)', 'OTHER TRIODIA BASEDOWII (DEAD)', 'OTHER ANIMAL DROPPINGS', 'OTHER ROCK', 'OTHER ANIMAL DIGGINGS', 'OTHER WOODY OVERSTORY', 'OTHER STANDING DEAD', 'OTHER ANIMAL DIGGING', 'OTHER SOIL BIOCRUST', 'OTHER WOOD', 'OTHER SHELL', 'DEER')))%>%
   mutate(trt=as.character(ifelse(year_trt<1, 'Control', as.character(trt))))
@@ -36,7 +36,7 @@ evennessPlot <- relCover%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evennessPlot, 'nutnet_plot_richEven_01292021.csv', row.names=F)
+# write.csv(evennessPlot, 'nutnet_plot_richEven_20240213.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%
@@ -101,8 +101,40 @@ codomSppList <- Cmax%>%
   filter(rank<=num_codominants)%>%
   ungroup()
 
-# write.csv(codomSppList, 'NutNet_codominants_list_plot_01292021.csv', row.names=F)
+# write.csv(codomSppList, 'NutNet_codominants_list_plot_20240213.csv', row.names=F)
 
+
+
+##### Plots -- gut check if number of codominants is correct #####
+
+siteProjComm <- codomSppList%>%
+  select(site_code, project_name, community_type)%>%
+  unique()
+
+rankCodominance <- Cmax %>% 
+  select(exp_unit, num_codominants) %>% 
+  left_join(rankOrder)
+
+# write.csv(rankCodominance, 'NutNet_codominantsRankAll_20240213.csv', row.names=F)
+
+site_proj_comm_vector <- unique(rankCodominance$site_code)
+
+for(PROJ in 1:length(site_proj_comm_vector)){
+  ggplot(data=filter(rankCodominance, site_code == site_proj_comm_vector[PROJ]),
+         aes(x=rank, y=relcov)) +
+    facet_grid(rows=vars(plot), cols=vars(year), scales='free') +
+    geom_point() +
+    geom_line() +
+    geom_vline(data=filter(rankCodominance, site_code == site_proj_comm_vector[PROJ]), 
+               mapping=aes(xintercept=num_codominants+0.5), color="blue") +
+    ggtitle(site_proj_comm_vector[PROJ]) +
+    theme_bw()
+  
+  ggsave(filename=paste0("C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\rank abundance curves\\",
+                         site_proj_comm_vector[PROJ], "_RAC.png"),
+         width = 35, height = 35, dpi = 300, units = "in", device='png')
+  
+}
 
 
 
@@ -130,7 +162,7 @@ evennessBlock <- relCoverBlock%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evennessBlock, 'nutnet_block_richEven_01292021.csv', row.names=F)
+# write.csv(evennessBlock, 'nutnet_block_richEven_20240213.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrderBlock <- relCoverBlock%>%

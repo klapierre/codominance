@@ -6,10 +6,11 @@
 ################################################################################
 
 library(psych)
+library(codyn)
 library(tidyverse)
 
 #kim's laptop
-setwd('C:\\Users\\lapie\\Dropbox (Smithsonian)\\working groups\\GEx working groups\\SEV 2019\\codominance\\data\\GEx')
+setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\GEx')
 
 theme_set(theme_bw())
 theme_update(axis.title.x=element_text(size=40, vjust=-0.35, margin=margin(t=15)), axis.text.x=element_text(size=34, color='black'),
@@ -46,7 +47,7 @@ evenness <- relCover%>%
   community_structure(time.var = 'year', abundance.var = 'relcov',
                       replicate.var = 'exp_unit', metric = c("Evar", "SimpsonEvenness", "EQ"))
 
-# write.csv(evenness, 'gex_richEven_01292021.csv', row.names=F)
+# write.csv(evenness, 'gex_richEven_20240213.csv', row.names=F)
 
 #generate rank of each species in each plot by relative cover, with rank 1 being most abundant
 rankOrder <- relCover%>%
@@ -110,9 +111,44 @@ codomSppList <- Cmax%>%
   filter(rank<=num_codominants)%>%
   ungroup()
 
-# write.csv(codomSppList, 'GEx_codominants_list_06112020.csv', row.names=F)
+# write.csv(codomSppList, 'GEx_codominants_list_20240213.csv', row.names=F)
 
-#histogram of codom
+
+##### Plots -- gut check if number of codominants is correct #####
+
+siteProjComm <- codomSppList%>%
+  select(site, block)%>%
+  unique()
+
+rankCodominance <- Cmax %>% 
+  select(exp_unit, num_codominants) %>% 
+  left_join(rankOrder) %>% 
+  mutate(site_proj_comm=paste(site, block, sep='_'))
+
+# write.csv(rankCodominance, 'gex_codominantsRankAll_202402091.csv', row.names=F)
+
+site_proj_comm_vector <- unique(rankCodominance$site_proj_comm)
+
+for(PROJ in 1:length(site_proj_comm_vector)){
+  ggplot(data=filter(rankCodominance, site_proj_comm == site_proj_comm_vector[PROJ]),
+         aes(x=rank, y=relcov)) +
+    facet_wrap(~exp_unit, scales='free') +
+    geom_point() +
+    geom_line() +
+    geom_vline(data=filter(rankCodominance, site_proj_comm == site_proj_comm_vector[PROJ]), 
+               mapping=aes(xintercept=num_codominants+0.5), color="blue") +
+    ggtitle(site_proj_comm_vector[PROJ]) +
+    theme_bw()
+  
+  ggsave(filename=paste0("C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\rank abundance curves\\",
+                         site_proj_comm_vector[PROJ], "_RAC.png"),
+         width = 35, height = 35, dpi = 300, units = "in", device='png')
+  
+}
+
+
+
+##### histogram of codom #####
 ggplot(data=codomSppList, aes(x=num_codominants)) +
   geom_histogram(color="black", fill="white", binwidth=1) +
   xlab('Number of Codominant Species') + ylab('Count')
@@ -124,11 +160,11 @@ ggplot(data=codomSppList, aes(x=Cmax, y=num_codominants)) +
 #export at 800x800
 
 
-###what drives codominance?
+##### what drives codominance? #####
 
 #read in site-level data
 siteData <- read.csv('GEx-metadata-with-other-env-layers-v2.csv')%>%
-  select(-X)%>%
+  # select(-X)%>%
   rename(plant_gamma=sprich, Ndep=N.deposition1993, latitude=Final.Lat, longitude=Final.Long, MAT=bio1, temp_range=bio7, MAP=bio12, precip_cv=bio15)
 
 #get site-level average cmax and number of codominants

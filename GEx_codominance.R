@@ -180,3 +180,42 @@ ggplot(data=CmaxDrivers, aes(x=Cmax, y=num_codominants)) +
   geom_point() +
   xlab('Cmax') + ylab('Number of Codominants')
 #export at 800x800
+
+
+
+
+
+
+#### 4 or more codom only #####
+
+##### Plots -- gut check if number of codominants is correct #####
+
+siteProjComm <- codomSppList%>%
+  select(site, block)%>%
+  unique()
+
+rankCodominance <- Cmax %>% 
+  select(exp_unit, num_codominants) %>% 
+  left_join(rankOrder) %>% 
+  mutate(site_proj_comm=paste(site, block, sep='_')) %>% 
+  filter(num_codominants>3)
+
+
+site_proj_comm_vector_4 <- unique(rankCodominance$site_proj_comm)
+
+for(PROJ in 1:length(site_proj_comm_vector_4)){
+  ggplot(data=filter(rankCodominance, site_proj_comm == site_proj_comm_vector_4[PROJ]),
+         aes(x=rank, y=relcov)) +
+    facet_wrap(~exp_unit, scales='free') +
+    geom_point() +
+    geom_line() +
+    geom_vline(data=filter(rankCodominance, site_proj_comm == site_proj_comm_vector_4[PROJ]), 
+               mapping=aes(xintercept=num_codominants+0.5), color="blue") +
+    ggtitle(site_proj_comm_vector_4[PROJ]) +
+    theme_bw()
+  
+  ggsave(filename=paste0("C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\rank abundance curves\\4ormore\\",
+                         site_proj_comm_vector_4[PROJ], "_RAC.png"),
+         width = 35, height = 35, dpi = 300, units = "in", device='png')
+  
+}

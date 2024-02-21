@@ -12,7 +12,7 @@ library(ggpubr)
 library(tidyverse)
 
 #set working directory
-setwd('C:\\Users\\lapie\\Dropbox (Smithsonian)\\working groups\\GEx working groups\\SEV 2019\\codominance\\data') #kim's laptop
+setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data') #kim's laptop
 
 # -----ggplot theme set-----
 theme_set(theme_bw())
@@ -51,25 +51,30 @@ mode <- function(codes){
 
 # -----read in global databases (CoRRE,  GEx, NutNet)-----
 #CoRRE
-corre <- read.csv('CoRRE\\corre_codominants_list_01282021.csv')%>%
+corre <- read.csv('CoRRE\\corre_codominants_list_202402091.csv')%>%
   select(-block, -genus_species, -relcov, -rank)%>%
   unique()%>%
-  left_join(read.csv('CoRRE\\corre_richEven_01292021.csv'))%>%
+  left_join(read.csv('CoRRE\\corre_richEven_20240208.csv'))%>%
   left_join(read.csv('CoRRE\\corre_plot_size.csv'))%>%
-  left_join(read.csv('CoRRE\\siteExperimentDetails_March2019.csv'))%>%
-  left_join(read.csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
+  left_join(read.csv('CoRRE\\CoRRE_siteBiotic_2021.csv'))%>%
+  left_join(read.csv('CoRRE\\CoRRE_siteLocationClimate_2021.csv'))%>%
+  left_join(read.csv('CoRRE\\CoRRE_ExperimentInfo_2021.csv'))%>%
   group_by(site_code, project_name, community_type, calendar_year, treatment)%>%
   mutate(plot_number=length(plot_id))%>%
   ungroup()%>%
   mutate(database='CoRRE')%>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)%>%
+  group_by(site_code, project_name, community_type)%>%
+  mutate(experiment_length=max(treatment_year))%>%
+  ungroup()%>%
+  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, experiment_length, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax, num_codominants, richness, Evar)%>%
   rename(gamma_rich=rrich)
+###need to add in experiment length here
 
 #GEx
-gex <- read.csv('GEx\\GEx_codominants_list_06112020.csv')%>%
+gex <- read.csv('GEx\\GEx_codominants_list_20240213.csv')%>%
   select(-genus_species, -relcov, -rank)%>%
   unique()%>%
-  left_join(read.csv('GEx\\gex_richEven_01292021.csv'))%>%
+  left_join(read.csv('GEx\\gex_richEven_20240213.csv'))%>%
   left_join(read.csv('GEx\\GEx-metadata-with-other-env-layers-v2.csv'))%>%
   mutate(database='GEx', project_name='NA', community_type='NA', trt_type=ifelse(trt=='G', 'control', 'herb_removal'), plot_permenant='NA', MAT=bio1/10)%>%
   rename(site_code=site, plot_id=block, calendar_year=year, treatment_year=exage, plot_id=block, treatment=trt, plot_size_m2=PlotSize, MAP=bio12, gamma_rich=sprich,anpp=ANPP)%>%
@@ -82,17 +87,17 @@ gex <- read.csv('GEx\\GEx_codominants_list_06112020.csv')%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
 
 #NutNet
-nutnetANPP <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December-2020.csv')%>%
+nutnetANPP <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity_2023-11-07.csv')%>%
   filter(trt=='Control')%>%
   group_by(site_code, year)%>%
-  summarise(anpp=mean(live_mass, na.rm=T))%>%
+  summarise(anpp=mean((vascular_live_mass+nonvascular_live_mass), na.rm=T))%>%
   ungroup()%>%
   filter(!is.nan(anpp), anpp>0)%>% #drops the data from some sites in years they didn't collect, and two years at one site that reported 0 growth
   group_by(site_code)%>%
   summarise(anpp=mean(anpp, na.rm=T))%>%
   ungroup()
 
-nutnetSiteInfo <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December-2020.csv')%>%
+nutnetSiteInfo <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity_2023-11-07.csv')%>%
   group_by(site_code)%>%
   mutate(experiment_length=max(year_trt))%>%
   ungroup()%>%
@@ -104,10 +109,10 @@ nutnetSiteInfo <- read.csv('nutnet\\comb-by-plot-clim-soil-diversity-07-December
   select(site_code, trt, year, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number)%>%
   unique()
 
-nutnet <- read.csv('nutnet\\NutNet_codominants_list_plot_01292021.csv')%>%
+nutnet <- read.csv('nutnet\\NutNet_codominants_list_plot_20240213.csv')%>%
   select(exp_unit, site_code, plot, year, year_trt, trt, Cmax, num_codominants)%>%
   unique()%>%
-  left_join(read.csv('nutnet\\nutnet_plot_richEven_01292021.csv'))%>%
+  left_join(read.csv('nutnet\\nutnet_plot_richEven_20240213.csv'))%>%
   left_join(nutnetSiteInfo)%>%
   mutate(database='NutNet', project_name='NA', community_type='NA', plot_size_m2=1, plot_permenant='y')%>%
   mutate(trt_type=ifelse(year_trt<1, 'control', ifelse(trt=='Control', 'control', ifelse(trt=='Fence', 'herb_removal', ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(trt=='N', 'N', ifelse(trt=='P', 'P', ifelse(trt=='K', 'K', ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
@@ -131,6 +136,31 @@ expInfo <- individualExperiments%>%
   select(database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp)%>%
   unique()
 
+
+
+#-----abundance cutoffs of codominance-----
+
+#across three databases, we have 69,970 individual datapoints (plot*year combinations)
+#control only: 17,062 (plot*year combinations)
+#removing temporal variation: 11,441 (plots)
+#experiments: 551
+
+
+correAbund <- read.csv('CoRRE\\corre_codominants_list_202402091.csv') %>% 
+  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
+GExAbund <- read.csv('GEx\\GEx_codominants_list_20240213.csv') %>% 
+  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
+nutnetAbund <- read.csv('nutnet\\NutNet_codominants_list_plot_20240213.csv') %>% 
+  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
+
+allAbund <- rbind(correAbund, GExAbund, nutnetAbund)
+
+#cutoff at 15% abundance for rank 1 species: 
+filterAbund <- allAbund %>% 
+  mutate(drop=ifelse(rank==1 & relcov<15, 1, 0)) %>% 
+  filter(drop==0) %>% 
+  select(exp_unit, num_codominants) %>% 
+  unique()
 
 
 

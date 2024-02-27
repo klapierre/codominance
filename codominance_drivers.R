@@ -219,6 +219,7 @@ for(PROJ in 1:length(site_proj_comm_vector)){
   ggplot(data=filter(filterMean, site_proj_comm == site_proj_comm_vector[PROJ]),
          aes(x=rank, y=relcov)) +
     geom_rect(aes(fill=drop2), xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
+    scale_fill_manual(values = alpha(c("red", "green", "lightblue"), 0.2)) +
     facet_grid(rows=vars(plot_id), cols=vars(calendar_year), scales='free') +
     geom_point() +
     geom_line() +

@@ -68,7 +68,6 @@ corre <- read.csv('CoRRE\\corre_codominants_list_202402091.csv')%>%
   ungroup()%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, experiment_length, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax, num_codominants, richness, Evar)%>%
   rename(gamma_rich=rrich)
-###need to add in experiment length here
 
 #GEx
 gex <- read.csv('GEx\\GEx_codominants_list_20240213.csv')%>%
@@ -140,27 +139,111 @@ expInfo <- individualExperiments%>%
 
 #-----abundance cutoffs of codominance-----
 
-#across three databases, we have 69,970 individual datapoints (plot*year combinations)
-#control only: 17,062 (plot*year combinations)
-#removing temporal variation: 11,441 (plots)
-#experiments: 551
+correAbund <- read.csv('CoRRE\\corre_codominantsRankAll_202402091.csv') %>% 
+  select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+GExAbund <- read.csv('GEx\\gex_codominantsRankAll_202402091.csv') %>% 
+  rename(site_code=site, treatment=trt, calendar_year=year) %>% 
+  mutate(plot_id=paste(block, treatment, sep='_'),
+         project_name=0, community_type=0) %>% 
+  select(exp_unit, site_code, project_name, plot_id, community_type, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+nutnetAbund <- read.csv('nutnet\\NutNet_codominantsRankAll_20240213.csv') %>% 
+  rename(calendar_year=year, plot_id=plot, treatment=trt) %>% 
+  mutate(project_name=0, community_type=0) %>% 
+  select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+
+allAbund <- rbind(correAbund, GExAbund, nutnetAbund) 
+
+replicatesAll <- allAbund %>% select(exp_unit) %>% unique() #69,886 individual data points (plot*year combinations)
+replicatesSpatial <- allAbund %>% select(site_code, project_name, community_type, plot_id) %>% unique() #12,088 individual plots
+replicatesExperiment <- allAbund %>% select(site_code, project_name, community_type) %>% unique() #551 experiments
 
 
-correAbund <- read.csv('CoRRE\\corre_codominants_list_202402091.csv') %>% 
-  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
-GExAbund <- read.csv('GEx\\GEx_codominants_list_20240213.csv') %>% 
-  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
-nutnetAbund <- read.csv('nutnet\\NutNet_codominants_list_plot_20240213.csv') %>% 
-  select(exp_unit, num_codominants, Cmax, genus_species, relcov, rank)
-
-allAbund <- rbind(correAbund, GExAbund, nutnetAbund)
-
-#cutoff at 15% abundance for rank 1 species: 
-filterAbund <- allAbund %>% 
-  mutate(drop=ifelse(rank==1 & relcov<15, 1, 0)) %>% 
-  filter(drop==0) %>% 
-  select(exp_unit, num_codominants) %>% 
+#cutoff at 20% abundance for rank 1 species: 
+filter1 <- allAbund %>% 
+  filter(num_codominants==1 & rank==1) %>% #39,774 data points are monodominated
+  mutate(drop=ifelse(relcov<30, 'c_borderline',
+              ifelse(relcov<20, 'a_drop', 'b_keep'))) %>% 
+  filter(drop!='b_keep') %>% #440 (1.1%) of these have cover less than 20% for the single dominant spp; 2843 (7.1%) less than 30%
+  select(exp_unit, drop) %>% 
   unique()
+
+# #cutoff at 30% abundance for sum of all codominant species -- this filter is not strict enough, don't do this
+# filter2 <- allAbund %>%
+#   filter(num_codominants>1) %>%
+#   group_by(exp_unit) %>%
+#   filter(rank<(num_codominants+1)) %>%
+#   summarise(sum_cover=sum(relcov)) %>%
+#   ungroup() %>%
+#   filter(sum_cover<30) %>%
+#   mutate(drop=1) %>%
+#   select(exp_unit, drop) %>%
+#   unique()
+# 
+# filter12 <- rbind(filter1, filter2) %>%
+#   unique() #applying both filters removes 592 data points (0.85%)
+# 
+# filterSum <- allAbund %>% full_join(filter12) %>%
+#   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='::')) %>%
+#   mutate(drop2=ifelse(is.na(drop), 'keep', 'drop'))
+
+
+#cutoff at 20% abundance for mean of all codominant species
+filter3 <- allAbund %>% 
+  filter(num_codominants>1) %>% 
+  group_by(exp_unit) %>% 
+  filter(rank<(num_codominants+1)) %>% 
+  summarise(mean_cover=mean(relcov)) %>% 
+  ungroup() %>% 
+  filter(mean_cover<20) %>% 
+  mutate(drop='a_drop') %>% 
+  select(exp_unit, drop) %>% 
+  unique()
+
+filterMean <- rbind(filter1, filter3) %>% 
+  unique() %>%  #applying both filters removes 7232 data points (10.3%)
+  pivot_wider(names_from=drop, values_from=drop) %>% 
+  mutate(remove=ifelse(c_borderline=='c_borderline' & a_drop=='a_drop', 1, 0)) %>% 
+  filter(is.na(remove)) %>% 
+  select(-remove) %>% 
+  pivot_longer(c_borderline:a_drop, names_to='name', values_to='a_drop') %>% 
+  filter(!is.na(a_drop)) %>% 
+  select(-name) %>% 
+  full_join(allAbund) %>% 
+  mutate(drop2=ifelse(is.na(a_drop), 'b_keep', a_drop)) %>% 
+  mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
+
+#plots for gut check
+site_proj_comm_vector <- unique(filterMean$site_proj_comm)
+
+for(PROJ in 1:length(site_proj_comm_vector)){
+  ggplot(data=filter(filterMean, site_proj_comm == site_proj_comm_vector[PROJ]),
+         aes(x=rank, y=relcov)) +
+    geom_rect(aes(fill=drop2), xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
+    facet_grid(rows=vars(plot_id), cols=vars(calendar_year), scales='free') +
+    geom_point() +
+    geom_line() +
+    geom_vline(data=filter(filterMean, site_proj_comm == site_proj_comm_vector[PROJ]), 
+               mapping=aes(xintercept=num_codominants+0.5), color="blue") +
+    ggtitle(site_proj_comm_vector[PROJ]) +
+    theme_bw()
+ 
+  ggsave(filename=paste0("C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\rank abundance curves\\mean cutoff\\",
+                         site_proj_comm_vector[PROJ], ".png"),
+         width = 35, height = 35, dpi = 300, units = "in", device='png')
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

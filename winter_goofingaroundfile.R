@@ -40,7 +40,11 @@ bintest <- ANGdf %>%
 
 #okay i think that works how I wanted. so how to determine if it changes over time?
 #unique "groupings" by plot_id?
-# just eyeballing a few plots a few do change over time 
+
+#just eyeballing a few plots a few do change over time 
+#so what year to pick??????
+
+
 #do something like group by plot_id, make new column thats the avg of num_codom column, then name by like 0 -> 1.49 = monodom, 1.5 -> 2.49 = codom.....
 #then do another column where we could do the same as above but do the mode. idk falling out of love with the idea of mode...
 

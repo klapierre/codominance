@@ -10,6 +10,82 @@ library(tidyverse)
 
 #CORRE
 
+#########
+#  ADJUSTED GROUPINGS 4/15
+###########
+
+df <- read.csv("corre_codominantsRankAll_202402091.csv")
+
+controlonly <- subset(df, treatment == "C")
+
+most_common <- controlonly %>%
+  group_by(site_proj_comm, plot_id,calendar_year) %>%
+  summarise(most_common_codom = names(which.max(table(num_codominants)))) %>%
+  ungroup()
+
+# Base R doesn't have a robust mode calculation metric?????? icky :(
+# Stole some code from stack overflow to make a mode function
+
+mode_func <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+
+mode_result_each_plot <- most_common %>%
+  group_by(site_proj_comm,plot_id) %>%
+  summarise(mode_most_common_codom = mode_func(most_common_codom)) %>%
+  ungroup()
+
+mode_result_at_site <- mode_result_each_plot %>%
+  group_by(site_proj_comm) %>%
+  summarise(mode_most_common_codom_at_site = mode_func(mode_most_common_codom)) %>%
+  ungroup()
+
+# Bin the results ------ NOTE : First set is for when we want tridominated included, second is for 2 & 3 = "codominated"
+
+CORRE_MODES_BINNED <- mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "tridomindated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
+
+CORRE_MODES_COLLAPSED <- mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "codominated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##########
+# OLD CODE BELOW (IS STINKY)
+############
+
 df <- read.csv("corre_codominantsRankAll_202402091.csv")
 
 head(df)
@@ -118,15 +194,6 @@ avgnumcodomgrouping <- addavgnumcodom %>%
     between(avg_num_codominants, 3.5, 15) ~ "even",
     TRUE ~ NA_character_
   ))
-
-
-
-
-
-
-
-
-
 
 
 

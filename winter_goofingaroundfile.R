@@ -27,7 +27,13 @@ library(tidyverse)
 
 corre_df <- read.csv("corre_codominantsRankAll_202402091.csv")
 
-controlonly <- subset(corre_df, treatment == "C")
+controlonly <- subset(corre_df, treatment == "C") ####### Sooooo apparently CoRRe doesn't just use C for control across this whole-df 
+# need to adjust line 30 so it properly subset all the controls -_- run line 33 to see the whole-ass list
+##########
+unique(corre_df$treatment)
+#############
+
+
 
 corre_most_common <- controlonly %>%
   group_by(site_proj_comm, plot_id,calendar_year) %>%
@@ -350,6 +356,11 @@ avgnumcodomgrouping <- addavgnumcodom %>%
 # Sandbox Area
 ################
 
+unique(controlonly$site_code)
+
+unique(corre_df$site_code)
+
+unique(corre_df$treatment)
 
 result_table <- addavgnumcodom %>%
   group_by(site_code, treatment_year, plot_id) %>%

@@ -12,17 +12,17 @@ library(emmeans)
 
 #### For 04/01/2024 ####
 ## CoRRE ####
-CoRRERichProd <- read.csv("C:/Users/alyoung6/OneDrive - UNCG/2024_codominance/data/CoRRE/CoRRE_siteBiotic_2021.csv")%>%
+CoRRERichProd <- read.csv("C:/Users/alyoung6/OneDrive - UNCG/2024_codominance/data/CoRRE/CoRRE_siteBiotic_2021.csv") %>%
   # keep community types w/in projects and sites separate so there are distinct ANPP and richness values for each, but the same coordinates, MAP, and MAT #
   mutate(site_proj_comm = paste(site_code, project_name, community_type, sep="_")) %>%
   rename("GDiv" = "rrich", "ANPP"="anpp")
 #'rrich' is gamma div#
-
+  
 CoRRECoordClim <- read.csv("C:/Users/alyoung6/OneDrive - UNCG/2024_codominance/data/CoRRE/CoRRE_siteLocationClimate_2021.csv") %>%
   # remove Sil and SORBAS sites #
   filter(site_code!="Sil" & site_code!="SORBAS")
 
-CoRREfull <- merge(CoRRECoordClim,CoRRERichProd, by=c("site_code"), all=T) %>%
+CoRREfull <- merge(CoRRECoordClim,CoRRE, by=c("site_code"), all=T) %>%
   select(site_code, site_proj_comm, Latitude, Longitude, MAP, MAT, GDiv, ANPP)
 
 #################
@@ -63,10 +63,10 @@ NutNetprod <- read.csv("C:/Users/alyoung6/OneDrive - UNCG/2024_codominance/data/
   summarise(ANPP = mean(anpp))
 
 
-NutNetfULL <- merge.data.frame(NutNetClim, NutNetproductivity, by=c("site_code"), all=T)
+NutNetfULL <- merge.data.frame(NutNetCoordClim, NutNetprod, by=c("site_code"), all=T)
 
 FinalAllNetworks <- bind_rows(CoRREfull, GExfull, NutNetfULL)
-write.csv(FinalAllNetworks, "C:/Users/alyoung6/OneDrive - UNCG/SIDE PROJECTS/\\CodominanceAllNetworksSummaryAbioticRichProd.csv", row.names=FALSE)
+#write.csv(FinalAllNetworks, "C:/Users/alyoung6/OneDrive - UNCG/SIDE PROJECTS/\\CodominanceAllNetworksSummaryAbioticRichProd.csv", row.names=FALSE)
 
 
 ################################################################################################################################

@@ -8,17 +8,28 @@ library(tidyverse)
 # If yes, then decide what yr to use. If no, then use the mean (or mode?). 
 
 
-#CORRE
+#Control plot. For each year, bin plots into mono-dominated, co-dominated, tri-dominated, even (4+). 
+#Check to see if there is directional change over time in the control plots (there is no directional change). 
+#Then for each plot through time pick which category occurs most often. 
+#Then average (or mode?) plots within a site to get a single codom category. 
+#Then do mode again across plots to get a value at site level (collapse 2 and 3 codoms into one single category).
 
-#########
+
+
+###############
+#   CORRE
+##############
+
+
+##############################
 #  ADJUSTED GROUPINGS 4/15
-###########
+##############################
 
-df <- read.csv("corre_codominantsRankAll_202402091.csv")
+corre_df <- read.csv("corre_codominantsRankAll_202402091.csv")
 
-controlonly <- subset(df, treatment == "C")
+controlonly <- subset(corre_df, treatment == "C")
 
-most_common <- controlonly %>%
+corre_most_common <- controlonly %>%
   group_by(site_proj_comm, plot_id,calendar_year) %>%
   summarise(most_common_codom = names(which.max(table(num_codominants)))) %>%
   ungroup()
@@ -32,19 +43,19 @@ mode_func <- function(x) {
 }
 
 
-mode_result_each_plot <- most_common %>%
+corre_mode_result_each_plot <- corre_most_common %>%
   group_by(site_proj_comm,plot_id) %>%
   summarise(mode_most_common_codom = mode_func(most_common_codom)) %>%
   ungroup()
 
-mode_result_at_site <- mode_result_each_plot %>%
+corre_mode_result_at_site <- corre_mode_result_each_plot %>%
   group_by(site_proj_comm) %>%
   summarise(mode_most_common_codom_at_site = mode_func(mode_most_common_codom)) %>%
   ungroup()
 
 # Bin the results ------ NOTE : First set is for when we want tridominated included, second is for 2 & 3 = "codominated"
 
-CORRE_MODES_BINNED <- mode_result_at_site %>% 
+CORRE_MODES_BINNED <- corre_mode_result_at_site %>% 
   mutate(groupings = case_when(
     mode_most_common_codom_at_site == 1 ~ "monodominated",
     mode_most_common_codom_at_site == 2 ~ "codominated",
@@ -54,7 +65,7 @@ CORRE_MODES_BINNED <- mode_result_at_site %>%
   ))
 
 
-CORRE_MODES_COLLAPSED <- mode_result_at_site %>% 
+CORRE_MODES_COLLAPSED <- corre_mode_result_at_site %>% 
   mutate(groupings = case_when(
     mode_most_common_codom_at_site == 1 ~ "monodominated",
     mode_most_common_codom_at_site == 2 ~ "codominated",
@@ -62,6 +73,115 @@ CORRE_MODES_COLLAPSED <- mode_result_at_site %>%
     mode_most_common_codom_at_site >= 4 ~ "even",
     TRUE ~ NA_character_
   ))
+
+
+
+###############
+#   GeX
+##############
+
+
+gex_df <- read.csv("gex_codominantsRankAll_202402091.csv")
+
+ungrazedonly <- subset(gex_df, trt == "U")
+
+gex_most_common <- ungrazedonly %>%
+  group_by(site, block,year) %>%
+  summarise(most_common_codom = names(which.max(table(num_codominants)))) %>%
+  ungroup()
+
+# Base R doesn't year# Base R doesn't have a robust mode calculation metric?????? icky :(
+# Stole some code from stack overflow to make a mode function
+
+mode_func <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+gex_mode_result_each_block <- gex_most_common %>%
+  group_by(site,block) %>%
+  summarise(mode_most_common_codom = mode_func(most_common_codom)) %>%
+  ungroup()
+
+gex_mode_result_at_site <- gex_mode_result_each_block %>%
+  group_by(site) %>%
+  summarise(mode_most_common_codom_at_site = mode_func(mode_most_common_codom)) %>%
+  ungroup()
+
+# Bin the results ------ NOTE : First set is for when we want tridominated included, second is for 2 & 3 = "codominated"
+
+GEX_MODES_BINNED <- gex_mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "tridomindated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
+
+GEX_MODES_COLLAPSED <- gex_mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "codominated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
+
+###############
+#   NutNet
+##############
+
+nutnet_df <- read.csv("NutNet_codominantsRankAll_20240213.csv")
+
+nutnet_controlonly <- subset(nutnet_df,trt == "Control")
+
+nutnet_most_common <- nutnet_df %>%
+  group_by(site_name, subplot,year_trt) %>%
+  summarise(most_common_codom = names(which.max(table(num_codominants)))) %>%
+  ungroup()
+
+# Base R doesn't year# Base R doesn't have a robust mode calculation metric?????? icky :(
+# Stole some code from stack overflow to make a mode function
+
+mode_func <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+nutnet_mode_result_each_subplot <- nutnet_most_common %>%
+  group_by(site_name,subplot) %>%
+  summarise(mode_most_common_codom = mode_func(most_common_codom)) %>%
+  ungroup()
+
+nutnet_mode_result_at_site <- nutnet_mode_result_each_subplot %>%
+  group_by(site_name) %>%
+  summarise(mode_most_common_codom_at_site = mode_func(mode_most_common_codom)) %>%
+  ungroup()
+
+# Bin the results ------ NOTE : First set is for when we want tridominated included, second is for 2 & 3 = "codominated"
+
+NUTNET_MODES_BINNED <- nutnet_mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "tridomindated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
+
+NUTNET_MODES_COLLAPSED <- nutnet_mode_result_at_site %>% 
+  mutate(groupings = case_when(
+    mode_most_common_codom_at_site == 1 ~ "monodominated",
+    mode_most_common_codom_at_site == 2 ~ "codominated",
+    mode_most_common_codom_at_site == 3 ~ "codominated",
+    mode_most_common_codom_at_site >= 4 ~ "even",
+    TRUE ~ NA_character_
+  ))
+
 
 
 

@@ -2,4 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+<<<<<<< HEAD
 corre_codominantsRankAll_202402091.csv
+=======
+corre_codominantsRankAll_202402091.csv
+gex_codominantsRankAll_202402091.csv
+NutNet_codominantsRankAll_20240213.csv
+>>>>>>> 076271899310d3c2831dc0faedd31b4e76816c69

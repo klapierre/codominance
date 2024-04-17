@@ -352,5 +352,24 @@ allSpp <- rbind(nutnetSpClean, GExSp, CoRREsp) %>%
   pivot_wider(names_from=database, values_from=database, values_fill='not') %>% 
   mutate(nutnet_only=ifelse(GEx=='not' & CoRRE=='not', 'needs traits', 'has traits'))
 
-needsTraits <- allSpp %>% filter(nutnet_only=='needs traits')
+nutnetFamilies <- nutnetSp %>% 
+  filter(!is.na(New.Species), New.Species!='sp.') %>% 
+  mutate(database='NutNet', species_matched=paste(New.Genus, New.Species, sep=' ')) %>% 
+  select(database, species_matched, Family) %>% 
+  unique() %>% 
+  mutate(species_matched=str_to_sentence(species_matched))
+
+needsPhotopath <- nutnet %>% 
+  select(genus_species, ps_path) %>% 
+  unique() %>% 
+  rename(Taxon=genus_species) %>% 
+  filter(ps_path=='NULL') %>% 
+  left_join(nutnetSp)  %>% 
+  filter(!is.na(New.Species), New.Species!='sp.') %>% 
+  mutate(database='NutNet', species_matched=paste(New.Genus, New.Species, sep=' ')) %>% 
+  select(species_matched, ps_path, Family) %>% 
+  unique() %>% 
+  mutate(species_matched=str_to_sentence(species_matched)) %>% 
+  mutate(alt_photopath_possible=ifelse(Family %in% c('Acanthaceae', 'Aizoaceae', 'Amaranthaceae', 'Asteraceae', 'Boraginaceae', 'Cleomaceae', 'Caryophyllaceae', 'Cyperaceae', 'Euphorbiaceae', 'Gisekiaceae', 'Hydrocharitaceae', 'Molluginaceae', 'Nyctaginaceae', 'Polygonaceae', 'Portulacaceae', 'Poaceae', 'Scrophulariaceae', 'Zygophyllaceae', 'Cactaceae', 'Crassulaceae', 'Euphorbiaceae', 'Liliaceae', 'Bromeliaceae', 'Orchidaceae'), 'possible', 'no')) %>% 
+  filter(alt_photopath_possible=='possible')
 

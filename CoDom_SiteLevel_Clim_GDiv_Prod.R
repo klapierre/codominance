@@ -22,7 +22,7 @@ CoRRECoordClim <- read.csv("C:/Users/alyoung6/OneDrive - UNCG/2024_codominance/d
   # remove Sil and SORBAS sites #
   filter(site_code!="Sil" & site_code!="SORBAS")
 
-CoRREfull <- merge(CoRRECoordClim,CoRRE, by=c("site_code"), all=T) %>%
+CoRREfull <- merge(CoRRECoordClim,CoRRERichProd, by=c("site_code"), all=T) %>%
   select(site_code, site_proj_comm, Latitude, Longitude, MAP, MAT, GDiv, ANPP)
 
 #################

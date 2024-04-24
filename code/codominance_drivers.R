@@ -12,7 +12,8 @@ pacman::p_load(tidyverse,
                nlme,
                lsmeans,
                performance,
-               ggpubr)
+               ggpubr,
+               DescTools)
 
 #set working directory
 #setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data') #kim's laptop
@@ -53,6 +54,9 @@ mode <- function(codes){
 }
 
 # -----read in global databases (CoRRE,  GEx, NutNet)-----
+
+
+
 #CoRRE
 corre <- read_csv('data/CoRRE/corre_codominants_list_202402091.csv')%>%
   select(-block, -genus_species, -relcov, -rank)%>%
@@ -72,6 +76,10 @@ corre <- read_csv('data/CoRRE/corre_codominants_list_202402091.csv')%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, experiment_length, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax, num_codominants, richness, Evar)%>%
   rename(gamma_rich=rrich)
 
+unique(corre$trt_type)
+
+## drop sites that overlap in nutnet with same names (should say something about nutnet)
+
 #GEx
 gex <- read_csv('data/GEx/GEx_codominants_list_20240213.csv')%>%
   select(-genus_species, -relcov, -rank)%>%
@@ -87,6 +95,8 @@ gex <- read_csv('data/GEx/GEx_codominants_list_20240213.csv')%>%
   mutate(plot_number=length(plot_id))%>%
   ungroup()%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
+
+unique(gex$trt_type)
 
 #NutNet
 nutnetANPP <- read_csv('data/nutnet/comb-by-plot-clim-soil-diversity_2023-11-07.csv')%>%
@@ -121,6 +131,7 @@ nutnet <- read_csv('data/nutnet/NutNet_codominants_list_plot_20240213.csv')%>%
   rename(plot_id=plot, calendar_year=year, treatment_year=year_trt, treatment=trt)%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
 
+unique(nutnet$trt_type)
 
 # -----combine datasets-----
 
@@ -133,11 +144,11 @@ individualExperiments <- rbind(corre, gex, nutnet)%>%
   rename(num_codominants=num_codominants_fix)%>%
   unique()
 
+unique(individualExperiments$trt_type) # identify what treatments are
 
 expInfo <- individualExperiments%>%
-  select(database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp)%>%
+  select(exp_unit, database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, trt_type)%>%
   unique()
-
 
 
 #-----abundance cutoffs of codominance-----
@@ -216,58 +227,46 @@ filterMean <- rbind(filter1, filter3) %>%
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
 
 
-
 ## new code for codom categorical rank
+
 # group number of codominants into 4 categories 
 df_edit <- filterMean %>% 
-  filter(a_drop == "a_drop") %>% # double check this: but are these still needing to be dropped because of CMax
+  left_join(expInfo, by = c("site_code", "exp_unit", "project_name", "community_type")) %>%  # join with experimental info to understand treatments
   mutate(group = case_when(num_codominants == 1 ~ "monodominated",
                            num_codominants == 2 ~ "codominated",
                            num_codominants == 3 ~ "tridominated",
-                           num_codominants >= 4 ~ "even"))
+                           num_codominants >= 4 ~ "even"),
+         num_group = case_when(num_codominants == 1 ~ 1,
+                          num_codominants == 2 ~ 2,
+                          num_codominants == 3 ~ 3,
+                          num_codominants >= 4 ~ 4)) 
+
 # check that there are 4 groups 
 unique(df_edit$group) 
 
-# separate control group
-  ### issue: treatment labels are inconsistent so need to fix this 
-unique(df_edit$treatment) # 445 options 
+# visualize groups
+ggplot(df_edit,
+       aes(group)) +
+  geom_bar(aes(x = factor(group, level = c('monodominated', 'codominated', 'tridominated', 'even')))) +
+  theme_minimal()
 
-## need better option for what is listed below --> error prone
-df_edit$treatment[df_edit$treatment=="C"] <- "control"
-df_edit$treatment[df_edit$treatment=="Reference"] <- "control"
-df_edit$treatment[df_edit$treatment=="0_NITROGEN"] <- "control"
-df_edit$treatment[df_edit$treatment=="1_CONTROL_0"] <- "control"
-df_edit$treatment[df_edit$treatment=="0_CONTROL_1"] <- "control"
-df_edit$treatment[df_edit$treatment=="1_CONTROL_1"] <- "control"
-df_edit$treatment[df_edit$treatment=="ambient_control"] <- "control"
-df_edit$treatment[df_edit$treatment == "C WD"] <- "control"
-df_edit$treatment[df_edit$treatment=="C WH"] <- "control"
-df_edit$treatment[df_edit$treatment=="cT"] <- "control"
-df_edit$treatment[df_edit$treatment=="Ct"] <- "control"
-df_edit$treatment[df_edit$treatment=="ct"] <- "control"
-df_edit$treatment[df_edit$treatment=="WarmedControl"] <- "control"
-df_edit$treatment[df_edit$treatment=="1_CONTROL"] <- "control"
-df_edit$treatment[df_edit$treatment=="0_CONTROL"] <- "control"
-df_edit$treatment[df_edit$treatment=="UnwarmedControl"] <- "control"
-df_edit$treatment[df_edit$treatment=="0"] <- "control"
-df_edit$treatment[df_edit$treatment=="CONTROL"] <- "control"
-df_edit$treatment[df_edit$treatment=="c"] <- "control"
-df_edit$treatment[df_edit$treatment=="delayed_control"] <- "control"
-df_edit$treatment[df_edit$treatment=="con"] <- "control"
-df_edit$treatment[df_edit$treatment=="Cont"] <- "control"
-df_edit$treatment[df_edit$treatment=="Control"] <- "control"
-df_edit$treatment[df_edit$treatment=="CT"] <- "control"
 
+# check control group
+unique(df_edit$trt_type)
+
+#separate control group
 df_edit2 <- df_edit %>% 
-  filter(treatment == "control") # filters treatment column by control group 
+  filter(trt_type == "control") # filters treatment column by control group 
+
 
 edit_vector <- unique(df_edit2$site_proj_comm)
 
+# dont run unless needed- wait time >1hr 
 for(PROJ in 1:length(edit_vector)){
   ggplot(data=filter(df_edit2, site_proj_comm == edit_vector[PROJ]),
          aes(x=rank, y=relcov)) +
-    geom_rect(aes(fill=drop2), xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
-    scale_fill_manual(values = alpha(c("red", "green", "lightblue"), 0.2)) +
+    geom_rect(aes(fill=group), xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
+    scale_fill_manual(values = alpha(c("gold", "darkorange", "hotpink", "red2"), 0.2)) +
     facet_grid(rows=vars(plot_id), cols=vars(calendar_year), scales='free') +
     geom_point() +
     geom_line() +
@@ -276,19 +275,53 @@ for(PROJ in 1:length(edit_vector)){
     ggtitle(edit_vector[PROJ]) +
     theme_bw()
   
-  ggsave(filename=paste0("/Users/ashleylaroque/Library/Mobile Documents/com~apple~CloudDocs/Grad School/Terui Lab/Codominance/codominance/fig_control",
+  ggsave(filename=paste0("/Users/ashleylaroque/Library/Mobile Documents/com~apple~CloudDocs/Grad School/Terui Lab/Codominance/codominance/fig_codom_change_",
                          edit_vector[PROJ], ".png"),
          width = 35, height = 35, dpi = 300, units = "in", device='png')
   
 }
 
+#calculate mode
+df_v <- df_edit %>% 
+  group_by(site_proj_comm, plot_id, treatment, trt_type, calendar_year) %>% 
+  reframe(mode = Mode(num_group)) %>% # needs to be checked because same number mode as codom
+  ungroup()
 
+ggplot(df_v,
+       aes(x = mode))+
+  geom_bar()
+  
+df_v1 <- df_edit %>% 
+  select(exp_unit, site_proj_comm, project_name, site_code, plot_id, treatment, calendar_year,genus_species, relcov, rank, num_group, group, trt_type)
+
+df_v2 <- df_v %>% 
+  pivot_wider(id_cols = c(treatment, site_proj_comm, plot_id),
+              names_from = calendar_year,
+              values_from = mode)
+
+
+
+
+input <- c("group", "num_group", "genus_species")
+
+list_change <- lapply(input, function(x) {
+  df_v1 %>% 
+    arrange(calendar_year, treatment) %>% 
+    mutate(event = paste0("yr_", sprintf("%02d", calendar_year))) %>% 
+    pivot_wider(id_cols = c(treatment, site_proj_comm),
+                names_from = event,
+                values_from = x)
+})
+
+# vectorize data
+df_v2 <- lapply(seq_len(length(list_change)),
+                  function(i) {
+                    fvec(list_change[[i]], input = input[i])
+                  }) %>% 
+  reduce(left_join, by = c("treatment", "site_proj_comm"))
 
 
 #______________________________________________
-
-
-
 
 
 #plots for gut check
@@ -312,20 +345,6 @@ for(PROJ in 1:length(site_proj_comm_vector)){
          width = 35, height = 35, dpi = 300, units = "in", device='png')
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #-----site-level drivers of codominance-----
 nutnetControls <- individualExperiments%>%

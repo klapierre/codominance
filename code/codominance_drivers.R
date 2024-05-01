@@ -74,11 +74,11 @@ corre <- read_csv('data/CoRRE/corre_codominants_list_202402091.csv')%>%
   mutate(experiment_length=max(treatment_year))%>%
   ungroup()%>%
   select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, experiment_length, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax, num_codominants, richness, Evar)%>%
-  rename(gamma_rich=rrich)
+  rename(gamma_rich=rrich) %>% 
+  filter(project_name != "NutNet") #remove overlapping sites from NutNet
 
 unique(corre$trt_type)
 
-## drop sites that overlap in nutnet with same names (should say something about nutnet)
 
 #GEx
 gex <- read_csv('data/GEx/GEx_codominants_list_20240213.csv')%>%
@@ -227,7 +227,8 @@ filterMean <- rbind(filter1, filter3) %>%
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
 
 
-## new code for codom categorical rank
+## new code for codom categorical rank (Ashley's edits)
+## will edit 
 
 # group number of codominants into 4 categories 
 df_edit <- filterMean %>% 
@@ -235,11 +236,11 @@ df_edit <- filterMean %>%
   mutate(group = case_when(num_codominants == 1 ~ "monodominated",
                            num_codominants == 2 ~ "codominated",
                            num_codominants == 3 ~ "tridominated",
-                           num_codominants >= 4 ~ "even"),
+                           num_codominants >= 4 ~ "even"), # categorical version
          num_group = case_when(num_codominants == 1 ~ 1,
                           num_codominants == 2 ~ 2,
                           num_codominants == 3 ~ 3,
-                          num_codominants >= 4 ~ 4)) 
+                          num_codominants >= 4 ~ 4)) # numerical version 
 
 # check that there are 4 groups 
 unique(df_edit$group) 
@@ -251,13 +252,50 @@ ggplot(df_edit,
   theme_minimal()
 
 
+#calculate mode
+df_v <- df_edit %>% 
+  group_by(site_proj_comm, plot_id, treatment, trt_type, calendar_year) %>% 
+  reframe(mode = Mode(num_group)) %>% # needs to be checked; generates mode per group from above
+  ungroup() %>% 
+  mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% 
+  filter(treat_type %in% c("control", "Control", "G")) # just control groups
+
+
+df_mode <- df_v %>%  
+  group_by(site_proj_comm) %>% 
+  reframe(mode_yr = Mode(mode)) 
+# value should be 500-900 
+
+### Ashley is working below
+
+ggplot(df_v,
+       aes(x = mode))+
+  geom_bar()
+
+df_v2 <- df_v %>%
+  pivot_wider(id_cols = c(site_proj_comm, plot_id, treatment),
+              names_from = calendar_year,
+              values_from = mode, names_sort = T) # wide format to see change through time 
+
+df_v3 <- df_v %>% 
+  group_by(site_proj_comm, plot_id, treatment) %>% 
+  mutate( first = dplyr::first(calendar_year),
+          last = dplyr::last(calendar_year),
+          exp_length = last - first) %>% 
+  filter(calendar_year == last)
+
+# when trt_type = control, does trt_type = other == same 
+
+
+
+
+
 # check control group
 unique(df_edit$trt_type)
 
 #separate control group
 df_edit2 <- df_edit %>% 
   filter(trt_type == "control") # filters treatment column by control group 
-
 
 edit_vector <- unique(df_edit2$site_proj_comm)
 
@@ -280,46 +318,6 @@ for(PROJ in 1:length(edit_vector)){
          width = 35, height = 35, dpi = 300, units = "in", device='png')
   
 }
-
-#calculate mode
-df_v <- df_edit %>% 
-  group_by(site_proj_comm, plot_id, treatment, trt_type, calendar_year) %>% 
-  reframe(mode = Mode(num_group)) %>% # needs to be checked because same number mode as codom
-  ungroup()
-
-ggplot(df_v,
-       aes(x = mode))+
-  geom_bar()
-  
-df_v1 <- df_edit %>% 
-  select(exp_unit, site_proj_comm, project_name, site_code, plot_id, treatment, calendar_year,genus_species, relcov, rank, num_group, group, trt_type)
-
-df_v2 <- df_v %>% 
-  pivot_wider(id_cols = c(treatment, site_proj_comm, plot_id),
-              names_from = calendar_year,
-              values_from = mode)
-
-
-
-
-input <- c("group", "num_group", "genus_species")
-
-list_change <- lapply(input, function(x) {
-  df_v1 %>% 
-    arrange(calendar_year, treatment) %>% 
-    mutate(event = paste0("yr_", sprintf("%02d", calendar_year))) %>% 
-    pivot_wider(id_cols = c(treatment, site_proj_comm),
-                names_from = event,
-                values_from = x)
-})
-
-# vectorize data
-df_v2 <- lapply(seq_len(length(list_change)),
-                  function(i) {
-                    fvec(list_change[[i]], input = input[i])
-                  }) %>% 
-  reduce(left_join, by = c("treatment", "site_proj_comm"))
-
 
 #______________________________________________
 

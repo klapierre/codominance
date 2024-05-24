@@ -12,8 +12,7 @@ pacman::p_load(tidyverse,
                nlme,
                lsmeans,
                performance,
-               ggpubr,
-               DescTools)
+               ggpubr)
 
 #set working directory
 #setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data') #kim's laptop
@@ -52,6 +51,17 @@ barGraphStats <- function(data, variable, byFactorNames) {
 mode <- function(codes){
   which.max(tabulate(codes))
 }
+
+# mode (used to calculate mode for codominance groups across years)
+Mode <- function(x, na.rm = FALSE) {
+  if(na.rm){
+    x = x[!is.na(x)]
+  }
+  
+  ux <- unique(x)
+  return(ux[which.max(tabulate(match(x, ux)))])
+}
+
 
 # -----read in global databases (CoRRE,  GEx, NutNet)-----
 
@@ -227,77 +237,92 @@ filterMean <- rbind(filter1, filter3) %>%
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
 
 
-## new code for codom categorical rank (Ashley's edits)
-## will edit 
+## new code for codom question 1 (Ashley's edits)
 
 # group number of codominants into 4 categories 
-df_edit <- filterMean %>% 
+df_grouped <- filterMean %>% 
   left_join(expInfo, by = c("site_code", "exp_unit", "project_name", "community_type")) %>%  # join with experimental info to understand treatments
   mutate(group = case_when(num_codominants == 1 ~ "monodominated",
                            num_codominants == 2 ~ "codominated",
                            num_codominants == 3 ~ "tridominated",
-                           num_codominants >= 4 ~ "even"), # categorical version
+                           num_codominants >= 4 ~ "even"),
          num_group = case_when(num_codominants == 1 ~ 1,
                           num_codominants == 2 ~ 2,
                           num_codominants == 3 ~ 3,
-                          num_codominants >= 4 ~ 4)) # numerical version 
+                          num_codominants >= 4 ~ 4)) %>% 
+  group_by(site_proj_comm) %>% 
+  mutate(mean_dominants_raw = mean(num_codominants), # mean number of dominants from raw classification
+         mean_dominacnts_mod = mean(num_group)) # mean number of dominants from modified groups
 
 # check that there are 4 groups 
-unique(df_edit$group) 
+unique(df_grouped$group) 
 
 # visualize groups
-ggplot(df_edit,
+ggplot(df_grouped,
        aes(group)) +
   geom_bar(aes(x = factor(group, level = c('monodominated', 'codominated', 'tridominated', 'even')))) +
   theme_minimal()
 
-
-#calculate mode
-df_v <- df_edit %>% 
-  group_by(site_proj_comm, plot_id, treatment, trt_type, calendar_year) %>% 
-  reframe(mode = Mode(num_group)) %>% # needs to be checked; generates mode per group from above
-  ungroup() %>% 
+# calculate mode for each year, site, proj, community, treatment, plot
+df_mode <- df_grouped %>%  
   mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% 
-  filter(treat_type %in% c("control", "Control", "G")) # just control groups
+  group_by(site_proj_comm, site_code, project_name, community_type, plot_id, treat_type, calendar_year) %>% 
+  reframe(mode = Mode(num_group)) %>% # mode function must be capital here
+  ungroup()  
 
 
-df_mode <- df_v %>%  
-  group_by(site_proj_comm) %>% 
-  reframe(mode_yr = Mode(mode)) 
-# value should be 500-900 
+# subset controls 
+df_control <- df_mode %>% 
+  filter(treat_type %in% c("control", "Control", "G")) 
+# above: is the treatment "reference" also a control group?
+# above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
 
-### Ashley is working below
+# calculate mode across all years of a treatment just for control groups 
+df_mode2 <- df_control %>%  
+  group_by(site_code, project_name, community_type) %>% # mode generated from these
+  reframe(mode_yr = Mode(mode)) %>%   # 549 values
+  ungroup()
 
-ggplot(df_v,
-       aes(x = mode))+
-  geom_bar()
+df_mode3 <- df_mode2 %>% 
+  group_by(site_code) %>% # generate mode per site because there may be multiple proj/comm per site
+  reframe(mode_site = Mode(mode_yr)) %>% 
+  ungroup() %>% 
+  mutate(codom_grouped = case_when(mode_site == 1 ~ 1, 
+                               mode_site == 2 ~ 2.5,
+                               mode_site == 3 ~ 2.5, #collapse 2 and 3 into one category
+                               mode_site >= 4 ~ 4)) 
 
-df_v2 <- df_v %>%
-  pivot_wider(id_cols = c(site_proj_comm, plot_id, treatment),
+
+## new code for codom question 3 (Ashley's edits)
+
+df_wide <- df_mode %>%
+  pivot_wider(id_cols = c(site_proj_comm, plot_id, treat_type),
               names_from = calendar_year,
               values_from = mode, names_sort = T) # wide format to see change through time 
 
-df_v3 <- df_v %>% 
-  group_by(site_proj_comm, plot_id, treatment) %>% 
-  mutate( first = dplyr::first(calendar_year),
-          last = dplyr::last(calendar_year),
-          exp_length = last - first) %>% 
-  filter(calendar_year == last)
+df_yr_diff <- df_mode %>% 
+  group_by(site_proj_comm, plot_id, treat_type) %>% 
+  mutate(first = dplyr::first(calendar_year),
+         last = dplyr::last(calendar_year),
+         exp_length = last - first) %>% 
+  filter(calendar_year == last) %>% 
+  ungroup()  
 
-# when trt_type = control, does trt_type = other == same 
+practice <- df_yr_diff %>% 
+  group_by(site_proj_comm, treat_type, calendar_year) %>% 
+  reframe(new_mode = Mode(mode)) %>% 
+  ungroup()%>% 
+  pivot_wider(id_cols = c(site_proj_comm),
+              names_from = treat_type,
+              values_from = new_mode, names_sort = T)
+
+# when treat_type = control Control G, is treat_type = other the same for final year
+
+mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) 
 
 
 
 
-
-# check control group
-unique(df_edit$trt_type)
-
-#separate control group
-df_edit2 <- df_edit %>% 
-  filter(trt_type == "control") # filters treatment column by control group 
-
-edit_vector <- unique(df_edit2$site_proj_comm)
 
 # dont run unless needed- wait time >1hr 
 for(PROJ in 1:length(edit_vector)){
@@ -319,7 +344,7 @@ for(PROJ in 1:length(edit_vector)){
   
 }
 
-#______________________________________________
+#___end ashley's edits___________________________________________
 
 
 #plots for gut check

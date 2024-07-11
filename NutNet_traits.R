@@ -9,6 +9,9 @@ library(Taxonstand)
 library(WorldFlora)
 library(data.table)
 library(readxl)
+library(PerformanceAnalytics)
+library(scales)
+library(ggpubr)
 library(tidyverse)
 
 
@@ -754,12 +757,525 @@ trait.info.mice.sd <- aggregate(. ~ .id, data = trait.info.mice[, -1], FUN = sd)
 
 
 
+##### Clean-up imputed traits #####
+
+theme_set(theme_bw())
+theme_update(axis.title.x=element_text(size=30, vjust=-0.35, margin=margin(t=15)), axis.text.x=element_text(size=26),
+             axis.title.y=element_text(size=30, angle=90, vjust=0.5, margin=margin(r=15)), axis.text.y=element_text(size=26),
+             plot.title = element_text(size=54, vjust=2),
+             panel.grid.major=element_blank(), panel.grid.minor=element_blank(),
+             legend.title=element_blank(), legend.text=element_text(size=30))
+
+
+#### Categorical trait data ####
+categoricalTraits <- read.csv("XYZ.csv") %>% 
+  filter(species_matched!='') %>% 
+  dplyr::select(family, species_matched, leaf_type, leaf_compoundness, stem_support, growth_form, photosynthetic_pathway, 
+                lifespan,  clonal, mycorrhizal_type, n_fixation, rhizobial, actinorhizal, leaf_type_source, 
+                leaf_compoundness_source, growth_form_source, photosynthetic_pathway_source, lifespan_source, 
+                stem_support_source, clonal_source, mycorrhizal_source, n_fixation_source) %>%
+  mutate(photosynthetic_pathway = replace(photosynthetic_pathway, grep("possible", photosynthetic_pathway), "uncertain")) %>%
+  # mutate(clonal = replace(clonal, clonal=="uncertain", NA)) %>%
+  mutate(mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type %in% c("arbuscular", "facultative_AM"), "AM"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type %in% c("double_AM_EcM", "EcM-AM", "facultative_AM_EcM", 
+                                                                              "NM-AM", "NM-AM, rarely EcM",
+                                                                              "species-specific: AM or rarely EcM-AM or AM"), "multiple"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type=="ecto", "EcM"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type=="ericaceous", "ErM"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type=="orchidaceous", "OM"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type=="Thysanothus", "TM"),
+         mycorrhizal_type = replace(mycorrhizal_type, mycorrhizal_type=="NM", "none"),
+         mycorrhizal_type = replace(mycorrhizal_type, is.na(mycorrhizal_type), "uncertain")) %>%
+  # mutate(lifespan = replace(lifespan, lifespan=="uncertain", NA)) %>%
+  mutate(n_fixation_type=ifelse(rhizobial=='yes', 'rhizobial',
+                         ifelse(actinorhizal=='yes', 'actinorhizal', 'none'))) %>% 
+  filter(lifespan != "moss") %>% 
+  select(-n_fixation, -rhizobial, -actinorhizal)
+
+categorical_TRY <- categoricalTraits %>% 
+  select(leaf_type_source, leaf_compoundness_source, growth_form_source, photosynthetic_pathway_source, lifespan_source, stem_support_source, clonal_source, mycorrhizal_source, n_fixation_source) %>% 
+  pivot_longer(leaf_type_source:n_fixation_source, names_to='trait', values_to='source') %>% 
+  filter(grepl("TRY", source))
+
+categoricalTraitsFamilies <- rbind(categoricalTraits, categoricalTraitsGEx) %>% 
+  filter(lifespan != "moss") %>% 
+  filter(species_matched!='') %>% 
+  select(family) %>% 
+  unique()
+
+categoricalTraitsError <-  rbind(categoricalTraits, categoricalTraitsGEx) %>% 
+  filter(lifespan != "moss") %>% 
+  filter(species_matched!='') %>% 
+  select(species_matched, growth_form_error, photosynthetic_pathway_error, lifespan_error, stem_support_error, clonal_error) %>% 
+  filter(growth_form_error!='')
+
+
+#### Pie Charts for each categorical trait ####
+# leaf type
+leafType <- categoricalTraits %>% 
+  group_by(leaf_type) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+leafTypeFig <- ggplot(leafType, aes(x="", y=proportion, fill=leaf_type)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(d) Leaf Type') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# leaf compoundness
+leafCompoundness <- categoricalTraits %>% 
+  group_by(leaf_compoundness) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+leafCompoundnessFig <- ggplot(leafCompoundness, aes(x="", y=proportion, fill=leaf_compoundness)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(e) Leaf Compoundness') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# stem support
+stemSupport <- categoricalTraits %>% 
+  group_by(stem_support) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+stemSupportFig <- ggplot(stemSupport, aes(x="", y=proportion, fill=stem_support)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(f) Stem Support') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# growth form
+growthForm <- categoricalTraits %>% 
+  group_by(growth_form) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+growthFormFig <- ggplot(growthForm, aes(x="", y=proportion, fill=growth_form)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF')) +
+  ggtitle('(a) Growth Form') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# photosynthetic pathway
+photosyntheticPathway <- categoricalTraits %>% 
+  group_by(photosynthetic_pathway) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+photoPathFig <- ggplot(photosyntheticPathway, aes(x="", y=proportion, fill=photosynthetic_pathway)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(g) Photosynthetic Path') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# lifespan
+lifespan <- categoricalTraits %>% 
+  group_by(lifespan) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+lifespanFig <- ggplot(lifespan, aes(x="", y=proportion, fill=lifespan)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(b) Lifespan') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# clonal
+clonal <- categoricalTraits %>% 
+  group_by(clonal) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+clonalFig <- ggplot(clonal, aes(x="", y=proportion, fill=clonal)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF')) +
+  ggtitle('(c) Clonality') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# mycorrhizal type
+mycorrhizalType <- categoricalTraits %>% 
+  group_by(mycorrhizal_type) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+mycorrFig <- ggplot(mycorrhizalType, aes(x="", y=proportion, fill=mycorrhizal_type)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF')) +
+  ggtitle('(h) Mycorrhizal Type') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+# n fixation type
+nFixationType <- categoricalTraits %>% 
+  group_by(n_fixation_type) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(proportion = round((n/sum(n)), digits=3)) %>% 
+  arrange(proportion) %>%
+  mutate(labels=scales::percent(proportion))
+
+nFixFig <- ggplot(nFixationType, aes(x="", y=proportion, fill=n_fixation_type)) +
+  geom_col() +
+  coord_polar(theta="y") +
+  scale_fill_manual(values=c('#7DCBBB', '#FFFFA4', '#B0AAD1', '#F7695F', '#6EA1C9', '#FBA550', '#A5DA56', '#AD68AF'))  +
+  ggtitle('(i) N Fixation Type') +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank(),
+        plot.title = element_text(vjust = 0.5),
+        legend.position = 'none')
+
+# ggsave('xyz.png', width=8, height=8, units='in', dpi=300, bg='white')
+
+#grouped figure
+ggarrange(growthFormFig, lifespanFig, clonalFig,
+          leafTypeFig, leafCompoundnessFig, stemSupportFig,
+          photoPathFig, mycorrFig, nFixFig,
+          ncol = 3, nrow = 3)
+
+# ggsave('xyz2.png', width=26, height=26, units='in', dpi=300, bg='white')
+
+
+#### Continuous traits ####
+
+# Import imputed trait data and bind on species information
+## this is trait data without replacement (all imputed)
+imputedMean <- read.csv("imputation_20240711\\imputed_traits_mice.csv") %>%
+  bind_cols(read.csv('nutnet_trait database_combo_continuous_20240710.csv')[,c('DatabaseID', 'DatasetID', 'ObservationID', 'Family', 'genus', 'species_matched')])  %>% 
+  pivot_longer(names_to='trait', values_to='imputed_value', plant_height_vegetative:X3114) %>% 
+  select(-.id)
+
+# Import std deviations from BHPMF imputation
+imputedStdBHPMF <- read.csv("imputation_20240711\\imputed_traits_std.csv") %>%
+  bind_cols(read.csv('nutnet_trait database_combo_continuous_20240710.csv')[,c('DatabaseID', 'DatasetID', 'ObservationID', 'Family', 'genus', 'species_matched')]) %>% 
+  pivot_longer(names_to='trait', values_to='std_BHPMF', plant_height_vegetative:X3114)
+
+# Import std deviations from mice imputation
+imputedStdMice <- read.csv("imputation_20240711\\imputed_traits_mice_std.csv") %>%
+  bind_cols(read.csv('nutnet_trait database_combo_continuous_20240710.csv')[,c('DatabaseID', 'DatasetID', 'ObservationID', 'Family', 'genus', 'species_matched')])  %>% 
+  pivot_longer(names_to='trait', values_to='std_mice', plant_height_vegetative:X3114) %>% 
+  select(-.id)
+
+# Replace std from BHPMF where value was set to NA because outside of error bounds with mice std
+imputedStd <- left_join(imputedStdBHPMF, imputedStdMice) %>% 
+  mutate(std=ifelse(std_mice>0, std_mice, std_BHPMF),
+         imputation_method=ifelse(std_mice>0, 'MICE', 'BHPMF'))
+
+# Merge means and std together
+imputedRaw <- left_join(imputedMean, imputedStd) %>%   
+  dplyr::select(-std_mice, -std_BHPMF) %>% 
+  filter(trait %in% c('LDMC', 'leaf_area', 'leaf_dry_mass', 'leaf_N', 'plant_height_vegetative', 'seed_dry_mass', 'SLA', 'SRL'))
+
+
+# Calculate averages for each species
+meanContinuous <- imputedRaw %>% 
+  group_by(Family, species_matched, trait) %>% 
+  summarize_at(.vars=c('imputed_value', 'std'),
+               .funs=list(mean=mean, sd=sd),
+               na.rm=T) %>% 
+  ungroup()
+
+speciesCount <- meanContinuous %>% 
+  select(Family, species_matched) %>% 
+  unique() %>% 
+  group_by(Family) %>% 
+  summarize(num_species=length(Family)) %>% 
+  ungroup() #117 families, 1147 species
+
+
+#### Clean imputed continuous trait data ####
+# Checked to ensure no negative values (confirmed that there are none)
+
+transformed <- imputedRaw %>% 
+  group_by(trait) %>% 
+  mutate(log=log10(imputed_value)) %>% 
+  ungroup() 
+
+# with(subset(transformed, trait=='LDMC'), hist(log)) #ensure normality
+
+meanSD <- transformed %>% 
+  group_by(trait) %>% 
+  summarise_at('log', .funs=list(mean=mean, sd=sd)) %>% 
+  ungroup()
+
+meanSDSpecies <- transformed %>%  
+  group_by(trait, species_matched) %>% 
+  summarize_at('log', .funs=list(species_mean=mean, species_sd=sd, species_length=length)) %>% 
+  ungroup()
+
+cleanContinuous <- imputedRaw %>% 
+  #calculate z-scores (error risk) for continuous traits 
+  left_join(transformed) %>% 
+  left_join(meanSD) %>% 
+  left_join(meanSDSpecies) %>% 
+  mutate(error_risk_overall=(log-mean)/sd) %>% 
+  mutate(error_risk_species=(log-species_mean)/species_sd) %>% 
+  filter(error_risk_overall<abs(4)) %>%  #drops 195 observations (0.08% of data)
+  filter(error_risk_species<abs(4)) %>% #drops an additional 2079 observations (0.90% of data)
+  mutate(trait2=ifelse(trait=='leaf_area', 'Leaf Area (leaf, +petiole)',
+                ifelse(trait=='SLA', 'Specific Leaf Area (+petiole)', 
+                ifelse(trait=='SRL', 'Specific Root Length (all root)',
+                ifelse(trait=='leaf_N', 'Leaf N Content',
+                ifelse(trait=='plant_height_vegetative', 'Plant Vegetative Height',
+                ifelse(trait=='seed_dry_mass', 'Seed Dry Mass',
+                ifelse(trait=='leaf_dry_mass', 'Leaf Dry Mass',
+                ifelse(trait=='LDMC', 'Leaf Dry Matter Content',
+                trait)))))))))
+
+# cleanContinousWide <- cleanContinuous %>% 
+#   pivot_longer(cols=c('imputed_value'), names_to='data_type', values_to='trait_value') %>% 
+#   na.omit()
+
+sppNum <- cleanContinuous %>% 
+  select(species_matched) %>% 
+  unique()
+
+
+#### Comparing original data ####
+
+originalData <- read.csv('nutnet_trait database_combo_continuous_20240710.csv') %>% 
+  select(-X3115, -X3109, -X3117, -X3114, -X614) %>% 
+  pivot_longer(cols=c(plant_height_vegetative:SRL), names_to='trait', values_to='trait_value') %>% 
+  filter(!is.na(trait_value)) %>%
+  mutate(trait2=ifelse(trait=='leaf_area', 'Leaf Area (leaf, +petiole)',
+                ifelse(trait=='SLA', 'Specific Leaf Area (+petiole)', 
+                ifelse(trait=='SRL', 'Specific Root Length (all root)',
+                ifelse(trait=='leaf_N', 'Leaf N Content',
+                ifelse(trait=='plant_height_vegetative', 'Plant Vegetative Height',
+                ifelse(trait=='seed_dry_mass', 'Seed Dry Mass',
+                ifelse(trait=='leaf_dry_mass', 'Leaf Dry Mass',
+                ifelse(trait=='LDMC', 'Leaf Dry Matter Content',
+                trait))))))))) %>% 
+  mutate(data_type=DatabaseID)
+
+combinedContinuous <- cleanContinuous %>% 
+  mutate(data_type='imputed') %>% 
+  dplyr::rename(trait_value=imputed_value) %>% 
+  select(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched, data_type, trait_value, trait, trait2) %>% 
+  rbind(originalData)
 
 
 
+#### Boxplots for each trait ####
+combinedContinuous$trait2 = factor(combinedContinuous$trait2, levels=c('Leaf Area (leaf, +petiole)', 'Leaf Dry Mass', 'Leaf Dry Matter Content', 'Specific Leaf Area (+petiole)', 'Leaf N Content', 'Plant Vegetative Height', 'Specific Root Length (all root)', 'Seed Dry Mass'))
 
 
 
+#Look at boxplots for each trait -- means by species
+combinedContinuousMean <- combinedContinuous %>%
+  group_by(DatabaseID, data_type, species_matched, trait, trait2) %>% 
+  dplyr::summarise(trait_value_mean=mean(trait_value)) %>% 
+  ungroup()
+
+#logged
+ggplot(data=combinedContinuousMean, aes(x=as.factor(data_type), y=trait_value_mean)) +
+  geom_jitter(aes(color=data_type)) +
+  geom_boxplot(color='black', alpha=0) +
+  facet_wrap(~trait2, scales='free_y', ncol=3, labeller=label_wrap_gen(width=25)) +
+  scale_x_discrete(breaks=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "imputed"),
+                   limits=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "imputed"),
+                   labels=c("Au", "BN", "C2", "TP", "TY", "imp")) +
+  scale_color_manual(values=c('#4E3686', '#5DA4D9', '#80D87F', 'darkgrey', '#FED23F', '#EE724C')) +
+  theme_bw() +
+  theme(panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        legend.position='none',
+        strip.text.x = element_text(size = 20),
+        axis.title.x=element_text(size=22, vjust=-0.35, margin=margin(t=15)), axis.text.x=element_text(size=22),
+        axis.title.y=element_text(size=22, angle=90, vjust=0.5, margin=margin(r=15)), axis.text.y=element_text(size=22)) +
+  xlab('Data Type') + ylab(expression(log[10]("Trait Value")))  +
+  scale_y_continuous(trans='log10', labels=label_comma())
+# ggsave('xyz.png', width=14, height=15, units='in', dpi=300, bg='white')
+
+#not logged
+ggplot(data=combinedContinuousMean, aes(x=as.factor(data_type), y=trait_value_mean)) +
+  geom_jitter(aes(color=data_type)) +
+  geom_boxplot(color='black', alpha=0) +
+  facet_wrap(~trait2, scales='free_y', ncol=3, labeller=label_wrap_gen(width=25)) +
+  scale_x_discrete(breaks=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "imputed"),
+                   limits=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "imputed"),
+                   labels=c("Au", "BN", "C2", "TP", "TY", "imp")) +
+  scale_color_manual(values=c('#4E3686', '#5DA4D9', '#80D87F', 'darkgrey', '#FED23F', '#EE724C')) +
+  theme_bw() +
+  theme(panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        legend.position='none',
+        strip.text.x = element_text(size = 20),
+        axis.title.x=element_text(size=22, vjust=-0.35, margin=margin(t=15)), axis.text.x=element_text(size=22),
+        axis.title.y=element_text(size=22, angle=90, vjust=0.5, margin=margin(r=15)), axis.text.y=element_text(size=22)) +
+  xlab('Data Type') + ylab("Trait Value")
+# ggsave('xyz.png', width=14, height=15, units='in', dpi=300, bg='white')
 
 
 
+##### Mean values for each species #####
+meanCleanContinuous <- cleanContinuous %>% 
+  group_by(Family, genus, species_matched, trait) %>% 
+  dplyr::summarize(trait_value=mean(imputed_value), imputation_error=mean(std)) %>% 
+  ungroup()
+
+meanSD <- meanCleanContinuous %>% 
+  mutate(log=log10(trait_value)) %>% 
+  group_by(trait) %>% 
+  dplyr::summarize(across('log', .fns=list(mean=mean, sd=sd))) %>% 
+  ungroup()
+
+meanSDFamily <- meanCleanContinuous %>% 
+  mutate(log=log10(trait_value)) %>% 
+  group_by(trait, Family) %>% 
+  dplyr::summarize(across('log', .fns=list(family_mean=mean, family_sd=sd, family_length=length))) %>% 
+  ungroup()
+
+meanSDGenus <- meanCleanContinuous %>% 
+  mutate(log=log10(trait_value)) %>% 
+  group_by(trait, genus) %>% 
+  dplyr::summarize(across('log', .fns=list(genus_mean=mean, genus_sd=sd, genus_length=length))) %>% 
+  ungroup()
+
+meanCleanContinuousErrorRisk <- meanCleanContinuous %>% 
+  left_join(meanSD) %>% 
+  left_join(meanSDFamily) %>% 
+  left_join(meanSDGenus) %>% 
+  mutate(log=log10(trait_value)) %>% 
+  mutate(error_risk_overall=(log-log_mean)/log_sd, 
+         error_risk_family=ifelse(log_family_length>2, (log-log_family_mean)/log_family_sd, NA),
+         error_risk_genus=ifelse(log_genus_length>2, (log-log_genus_mean)/log_genus_sd, NA)) %>% 
+  select(Family, genus, species_matched, trait, trait_value, imputation_error, error_risk_overall, error_risk_family, error_risk_genus) %>% 
+  # left_join(meanContinuous) %>% 
+  # select(-imputed_value_mean, imputed_value_sd, original_value_sd) %>% 
+  mutate(trait2=ifelse(trait=='leaf_area', 'Leaf Area (leaf, +petiole)',
+                ifelse(trait=='SLA', 'Specific Leaf Area (+petiole)', 
+                ifelse(trait=='SRL', 'Specific Root Length (all root)',
+                ifelse(trait=='leaf_N', 'Leaf N Content',
+                ifelse(trait=='plant_height_vegetative', 'Plant Vegetative Height',
+                ifelse(trait=='seed_dry_mass', 'Seed Dry Mass',
+                ifelse(trait=='leaf_dry_mass', 'Leaf Dry Mass',
+                ifelse(trait=='LDMC', 'Leaf Dry Matter Content',
+                trait)))))))))
+
+
+coverage <- meanCleanContinuousErrorRisk %>% 
+  select(Family, species_matched, trait, trait_value) %>% 
+  pivot_wider(names_from=trait, values_from=trait_value)
+
+summary(coverage)
+# 2 NAs across entire dataframe = 0.02% of data missing for these 1147 species
+
+
+##### Final data #####
+
+longContinuous <- meanCleanContinuousErrorRisk %>%
+  mutate(source='Imputed Value') %>% 
+  select(Family, species_matched, trait, trait_value, imputation_error, error_risk_overall, error_risk_family, error_risk_genus, source) %>% 
+  dplyr::rename(species=species_matched)
+
+# write.csv(longContinuous, 'NutNet_continuousTraitData_imputed_20240711.csv', row.names=F)

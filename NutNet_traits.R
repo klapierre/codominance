@@ -24,10 +24,10 @@ nutnet <- read.csv('full-cover_2023-11-07.csv')%>%
 
 ### only re-run if new spp needed, otherwise import from below (takes a long time to run)
 # WFO.file<-read.delim("C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data\\WFO_Backbone\\classification.txt")
-# nutnetSp <- TPL(unique(nutnet$genus_species)) 
+# nutnetSp <- TPL(unique(nutnet$genus_species))
 # write.csv(nutnetSp, 'NutNet_clean_spp_names_20240710.csv', row.names=F)
 
-nutnetSp <- read.csv('NutNet_clean_spp_names_20240710.csv')
+nutnetSp <- read.csv('NutNet_clean_spp_names_20240710.csv', fileEncoding="latin1")
 
 nutnetSpClean <- nutnetSp %>% 
   filter(!is.na(New.Species), New.Species!='sp.') %>% 
@@ -128,11 +128,11 @@ dat3 <- dat2 %>%
   filter(is.na(OrigObsDataID)) %>% # drop known repeats in TRY 
   filter(UncertaintyName!="Range" & UncertaintyName!="Class range") # drop 1190 observations that were range estimates for leaf area, plant vegetative height and seed mass, which led to repeats in the data
 
-# removing observations that do not meet our criteria
-
 # removing dead plants
 health <- dat %>%
-  select(DatasetID, DataID, ObsDataID, AccSpeciesID, AccSpeciesName, TraitID, OriglName, TraitName, OrigValueStr, OrigUnitStr, StdValue, UnitName, ErrorRisk) %>%
+  select(DatasetID, DataID, ObsDataID, AccSpeciesID, AccSpeciesName, 
+         TraitID, OriglName, TraitName, OrigValueStr, OrigUnitStr, 
+         StdValue, UnitName, ErrorRisk) %>%
   filter(DataID==1961) %>%
   mutate(drop=ifelse(OrigValueStr=="Dead", 1, 0)) %>%
   select(ObsDataID, drop) %>%
@@ -165,7 +165,9 @@ nontree <- dat3 %>% #merge to drop tree observations that are not seedlings
 
 # Removing plants that were not measured in natural conditions
 setting <- dat %>% #get list of observations that were not in natural settings
-  select(DatasetID, DataID, ObsDataID, AccSpeciesID, AccSpeciesName, TraitID, OriglName, TraitName, OrigValueStr, OrigUnitStr, StdValue, UnitName, ErrorRisk) %>%
+  select(DatasetID, DataID, ObsDataID, AccSpeciesID, AccSpeciesName, 
+         TraitID, OriglName, TraitName, OrigValueStr, OrigUnitStr, 
+         StdValue, UnitName, ErrorRisk) %>%
   filter(DataID==327) %>%
   mutate(drop=ifelse(OrigValueStr %in% c("Canadian High Arctic Research Station", "Control Plot", "field","Field", "Field (CG)", "Field (NE)", "field experiment", "Field Experiment", "Field plants", "forest stand", "Forest trees", "Forest understorey", "Fully open overstory 90 days, seedling", "Fully open overstory, seedling","Fully sunlit - Natural environment","High desert", "in situ", "In situ", "La Selva Biological Station", "meadows (M) and pastures (P) on south east to south west exposed slopes", "Montane meadow", "Mosses in forest", "nat env", "natural", "Natural", "natural-environment", "natural env", "natural envireonment", "natural enviroment", "Natural Enviroment", "natural environment", "Natural environment", "Natural Environment", "natural environment, high regional N and S deposition","natural environment, no warming, preccipitation ambient", "natural environment, sun exposed", "Natural Envrionment", "Natural Forest", "natural forest environment", "natural vegetation", "Natural Vegetation", "Natural Vegetation", "natural vegetation, but not top canopy", "natural wetland environment", "natural wetlands (field conditions)", "Natural/C", "natural_environment", "none", "None", "North facing slope", "Shade - Natural environment","South facing slope", "Trees in field"), 0, 1)) %>%
   select(ObsDataID, drop) %>%
@@ -225,6 +227,8 @@ TRYtraits <- cont_traits3a %>%
 #   ungroup() %>% 
 #   filter(n>2)
 
+# write.csv(TRYtraits, "NutNet_TRY traits_20240711.csv", row.names=F)
+
 
 ##### BIEN traits #####
 
@@ -237,20 +241,21 @@ library(BIEN)
 sp.vector <- unique(nutnet_key$species_matched)
 
 bienData <- BIEN_trait_species(species=sp.vector) %>% 
+  rename(species_matched=scrubbed_species_binomial) %>%  
   right_join(nutnetSpp) %>% 
   # subset to data that we want
-  filter(trait_name %in% c('leaf area', 'leaf area per dry mass', 'leaf dry mass', 'leaf dry mass per leaf fresh mass', 'seed mass',
+  filter(trait_name %in% c('leaf area', 'leaf area per dry mass', 'leaf dry mass', 
+                           'leaf dry mass per leaf fresh mass', 'seed mass',
                            'leaf nitrogen content per leaf dry mass')) %>% 
   mutate(trait_value=as.numeric(trait_value)) %>% 
   # standardize units to fit TRY
   mutate(clean_trait_value=ifelse(trait_name=='leaf dry mass per leaf fresh mass', trait_value/1000, #LDMC (BIEN mg/g   TRY g/g)
-                                  ifelse(trait_name=='leaf area per leaf dry mass', trait_value*1000, #SLA (BIEN m2/kg   TRY mm2/g)
-                                  ifelse(trait_name=='leaf dry mass', trait_value*1000, #leaf dry mass (BIEN g   TRY mg)
-                                  trait_value)))) %>% 
+                           ifelse(trait_name=='leaf area per leaf dry mass', trait_value*1000, #SLA (BIEN m2/kg   TRY mm2/g)
+                           ifelse(trait_name=='leaf dry mass', trait_value*1000, #leaf dry mass (BIEN g   TRY mg)
+                           trait_value)))) %>% 
   # remove data that was not from a naturally growing plant
   filter(method!='laboratory/greenhouse/garden experiment',
          trait_value!=0) %>% 
-  rename(species_matched=scrubbed_species_binomial) %>% 
   # Problem: A few datasets have lots of repeated data for some traits*species.
   # Solution: For each species, find if there is repeated data for all traits collected on an individual. 
   # Where this occurs, keep the lowest ObservationID.
@@ -268,14 +273,14 @@ bienData <- BIEN_trait_species(species=sp.vector) %>%
   rename(ObservationID=obid2)
 
 # checking for duplicate data
-test <- continuous %>% 
+test <- bienData %>% 
   group_by(species_matched, CleanTraitName, StdValue) %>% 
   summarize(n=length(StdValue)) %>% 
   ungroup() %>% 
   filter(n>2)
 
 # change BIEN trait names to fit TRY trait names
-continuous$CleanTraitName <- recode(continuous$CleanTraitName, 
+bienData$CleanTraitName <- recode(bienData$CleanTraitName, 
                                     'leaf area'='leaf_area',
                                     'leaf area per dry mass'='SLA',
                                     'leaf dry mass'='leaf_dry_mass',
@@ -285,7 +290,7 @@ continuous$CleanTraitName <- recode(continuous$CleanTraitName,
 
 
 # unify with other dataset columns
-BIENtraits <- continuous %>% 
+BIENtraits <- bienData %>% 
   mutate(DatabaseID='BIEN') %>% 
   rename(DatasetID=project_pi) %>% 
   select(DatabaseID, DatasetID, ObservationID, species_matched, CleanTraitName, StdValue) %>% 
@@ -301,6 +306,8 @@ BIENtraits <- continuous %>%
   mutate(Reference=DatasetID) %>% 
   select(DatabaseID, DatasetID, ObservationID, Family, species_matched, genus, CleanTraitName, StdValue, Reference) %>% 
   filter(StdValue>0)
+
+# write.csv(BIENtraits, 'NutNet_BIEN traits_20240711.csv', row.names=F)
 
 
 ##### AusTraits #####
@@ -328,7 +335,7 @@ traitData <- data$traits %>%
          species_matched=taxon_name,
          StdValue=value) %>% 
   mutate(StdValue=ifelse(trait_name=='leaf_mass_per_area', (1/StdValue)*1000, 
-                         ifelse(trait_name=='root_specific_root_length', (StdValue*100), StdValue)),
+                  ifelse(trait_name=='root_specific_root_length', (StdValue*100), StdValue)),
          trait_name=ifelse(trait_name=='leaf_mass_per_area', 'specific_leaf_area', trait_name))
 
 species <- nutnetSpp %>%  #species names are standardized
@@ -355,7 +362,8 @@ AusTraits$CleanTraitName <- recode(AusTraits$trait_name,
                                         'specific_leaf_area'='SLA', 
                                         'leaf_N_per_dry_mass'='leaf_N', 
                                         'plant_height'='plant_height_vegetative', 
-                                        'root_specific_root_length'='SRL') %>%
+                                        'root_specific_root_length'='SRL') 
+AusTraits <- AusTraits %>%
   left_join(nutnetSpp) %>%
   mutate(species_matched2=species_matched) %>%
   separate(species_matched2, into=c('genus', 'species')) %>%
@@ -363,6 +371,8 @@ AusTraits$CleanTraitName <- recode(AusTraits$trait_name,
          Reference=DatasetID) %>%
   select(DatabaseID, DatasetID, ObservationID, Family, species_matched, genus, CleanTraitName, StdValue, Reference) %>% 
   filter(StdValue>0)
+
+# write.csv(AusTraits, 'NutNet_AusTraits_20240711.csv', row.names=F)
 
 ##### TiP Leaf #####
 tipTraits <- read_xlsx('C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\working groups\\CoRRE\\CoRRE_database\\Data\\OriginalData\\Traits\\TiP_leaf\\The TiP-Leaf dataset.xlsx', sheet='plant traits') %>% 
@@ -383,15 +393,23 @@ tipTraits <- read_xlsx('C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Koma
 tipTraits$CleanTraitName <- recode(tipTraits$trait_name, 
                              'DW'='leaf_dry_mass',
                              'LA'='leaf_area',
-                             'LNC'='leaf_N') %>% 
+                             'LNC'='leaf_N')
+
+tipTraits <- tipTraits %>% 
   separate(col=species_matched, into=c('genus', 'species'), sep=' ', remove=F) %>% 
   left_join(nutnetSpp) %>% 
   mutate(Reference='TipLeaf Database') %>% 
   select(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched, CleanTraitName, StdValue, Reference) %>% 
   filter(StdValue>0)
 
+# write.csv(tipTraits, 'NutNet_TiP Leaf traits_20240711.csv', row.names=F)
 
 ##### China Plant Trait Database 2 #####
+spList <- read.csv('C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\working groups\\CoRRE\\CoRRE_database\\Data\\OriginalData\\Traits\\ChinaPlant2\\Species translations.csv') %>% 
+  unite(col='species_matched', ACCEPTED.GENUS:ACCEPTED.SPECIES, sep=' ') %>% 
+  select(species_matched, Site.ID, SAMPLE.ID) %>% 
+  left_join(nutnetSpp)
+
 chem <- read.csv("C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\working groups\\CoRRE\\CoRRE_database\\Data\\OriginalData\\Traits\\ChinaPlant2\\Chemical traits.csv") %>% 
   filter(flagged=="") %>% 
   mutate(leaf_area=Average.LA*1000000) %>% #unit conversion to TRY standards: m2 to mm2
@@ -402,7 +420,7 @@ chem <- read.csv("C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\w
          leaf_P=Pmass, 
          leaf_K=Kmass) %>% 
   pivot_longer(SLA:leaf_area, names_to="CleanTraitName", values_to="StdValue") %>% 
-  right_join(nutnetSpp) %>% 
+  right_join(spList) %>% 
   na.omit()
 
 photo <- read.csv("C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\working groups\\CoRRE\\CoRRE_database\\Data\\OriginalData\\Traits\\ChinaPlant2\\Photosynthetic traits.csv") %>% 
@@ -411,7 +429,7 @@ photo <- read.csv("C:\\Users\\kjkomatsu\\Smithsonian Dropbox\\Kimberly Komatsu\\
   rename(Vc_max=Vcmax,
          J_max=Jmax) %>% 
   pivot_longer(Vc_max:J_max, names_to='CleanTraitName', values_to='StdValue') %>% 
-  right_join(nutnetSpp) %>% 
+  right_join(spList) %>% 
   na.omit()
 
 #bind together
@@ -429,20 +447,24 @@ CPTDtraits <- rbind(chem, photo) %>%
 ##### Bind all trait data #####
 allTraits <- rbind(TRYtraits, AusTraits, BIENtraits, tipTraits, CPTDtraits) %>% 
   mutate(ReferenceID=paste(DatabaseID, DatasetID, sep='_')) %>% 
-  select(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched, CleanTraitName, StdValue, Reference, ReferenceID)
+  select(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched, 
+         CleanTraitName, StdValue) %>% 
+  group_by(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched, 
+           CleanTraitName) %>% 
+  summarise(StdValue=mean(StdValue)) %>% 
+  ungroup()
 
 allTraits_wide <- allTraits %>% 
-  select(-Reference) %>% 
   pivot_wider(names_from = CleanTraitName, values_from = StdValue, values_fill=NA)
 
 ntraits <- length(unique(allTraits$CleanTraitName))
 miss <- sum(is.na(allTraits_wide))
 total <- nrow(allTraits_wide)*ntraits
 miss/total*100
+#missing 89.03% of data
 
 spnum <- length(unique(allTraits_wide$species_matched))
 famnum <- length(unique(allTraits_wide$Family))
-# we are missing 88.5% of data
 
 label <- allTraits %>%
   group_by(CleanTraitName, DatabaseID) %>%
@@ -479,7 +501,7 @@ ggplot(data=label, aes(x=DatabaseID, y=length, label=round(percent,1), fill=Data
   geom_hline(yintercept=253224*.1, color='red') + # 10% of observations missing any given trait
   geom_text(vjust = -0.25, size=6) +
   facet_wrap(~CleanTraitName2, ncol=5, labeller=label_wrap_gen(width=25)) +
-  scale_y_continuous(labels = label_comma()) +
+  scale_y_continuous() +
   scale_x_discrete(breaks=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "total"),
                    limits=c("AusTraits", "BIEN", "CPTD2", "TIPleaf", "TRY", "total"),
                    labels=c("Au", "BN", "C2", "TP", "TY", 'all')) +
@@ -509,10 +531,10 @@ ggplot(data=allTraits, aes(x=DatabaseID, y=StdValue)) +
 
 # Transpose to wide format for gap filling.
 talltraits <- allTraits %>% 
-  group_by(DatabaseID, DatasetID, ObservationID, family, genus, species_matched) %>%
+  group_by(DatabaseID, DatasetID, ObservationID, Family, genus, species_matched) %>%
   pivot_wider(names_from=CleanTraitName, values_from=StdValue, values_fill=NA) %>% 
   ungroup()
 
-# write.csv(allTraits, 'nutnet_database_combo_continuous_20240710_long.csv', row.names = F)
+# write.csv(allTraits, 'nutnet_trait database_combo_continuous_20240710_long.csv', row.names = F)
 
-# write.csv(tallTraits, 'nutnet_database_combo_continuous_20240710.csv', row.names = F)
+# write.csv(talltraits, 'nutnet_trait database_combo_continuous_20240710.csv', row.names = F)

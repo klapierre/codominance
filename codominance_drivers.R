@@ -200,7 +200,7 @@ filter3 <- allAbund %>%
   unique()
 
 filterMean <- rbind(filter1, filter3) %>% 
-  unique() %>%  #applying both filters removes 7232 data points (10.3%)
+  unique() %>%  #applying both filters removes 7232 data points (10.3%); applying a 30% filter to codom mean cover would drop a combined 20,004 points (28.6%)
   pivot_wider(names_from=drop, values_from=drop) %>% 
   mutate(remove=ifelse(c_borderline=='c_borderline' & a_drop=='a_drop', 1, 0)) %>% 
   filter(is.na(remove)) %>% 

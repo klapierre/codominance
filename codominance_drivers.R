@@ -135,7 +135,9 @@ expInfo <- individualExperiments%>%
   select(database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp)%>%
   unique()
 
-
+sites <- expInfo %>% 
+  select(database, site_code) %>% 
+  unique()
 
 #-----abundance cutoffs of codominance-----
 

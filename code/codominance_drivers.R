@@ -14,9 +14,6 @@ pacman::p_load(tidyverse,
                performance,
                ggpubr)
 
-#set working directory
-#setwd('C:\\Users\\kjkomatsu\\OneDrive - UNCG\\manuscripts\\first author\\2024_codominance\\data') #kim's laptop
-
 # -----ggplot theme set-----
 theme_set(theme_bw())
 theme_update(axis.title.x=element_text(size=20, vjust=-0.35), axis.text.x=element_text(size=16),
@@ -63,50 +60,92 @@ Mode <- function(x, na.rm = FALSE) {
 }
 
 
-# -----read in global databases (CoRRE,  GEx, NutNet)-----
+# -----read in global databases (corre,  gex, NutNet)-----
+
+#corre
+
+# corre1 <- list.files("data/corre", pattern = "corre", full.names = TRUE) %>% 
+#   lapply(read_csv) %>% 
+#   bind_rows() %>% 
+#   merge(read_csv('data/corre/1corre_codominants_list_202402091.csv')) %>% 
+#   select(-block, -genus_species, -relcov, -rank) %>%
+#   unique()
 
 
 
-#CoRRE
-corre <- read_csv('data/CoRRE/corre_codominants_list_202402091.csv')%>%
+
+corre <- read_csv('data/corre/1corre_codominants_list_202402091.csv')%>%
   select(-block, -genus_species, -relcov, -rank)%>%
   unique()%>%
-  left_join(read_csv('data/CoRRE/corre_richEven_20240208.csv'))%>%
-  left_join(read_csv('data/CoRRE/corre_plot_size.csv'))%>%
-  left_join(read_csv('data/CoRRE/CoRRE_siteBiotic_2021.csv'))%>%
-  left_join(read_csv('data/CoRRE/CoRRE_siteLocationClimate_2021.csv'))%>%
-  left_join(read_csv('data/CoRRE/CoRRE_ExperimentInfo_2021.csv'))%>%
-  group_by(site_code, project_name, community_type, calendar_year, treatment)%>%
-  mutate(plot_number=length(plot_id))%>%
-  ungroup()%>%
-  mutate(database='CoRRE')%>%
-  group_by(site_code, project_name, community_type)%>%
-  mutate(experiment_length=max(treatment_year))%>%
-  ungroup()%>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, experiment_length, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax, num_codominants, richness, Evar)%>%
+  left_join(read_csv('data/corre/corre_richEven_20240208.csv'))%>%
+  left_join(read_csv('data/corre/corre_plot_size.csv'))%>%
+  left_join(read_csv('data/corre/corre_siteBiotic_2021.csv'))%>%
+  left_join(read_csv('data/corre/corre_siteLocationClimate_2021.csv'))%>%
+  left_join(read_csv('data/corre/corre_ExperimentInfo_2021.csv')) %>% 
+  group_by(site_code, project_name, community_type, calendar_year, treatment) %>%
+  mutate(plot_number=length(plot_id),
+         database='corre') %>%
+  ungroup() %>%
+  group_by(site_code, project_name, community_type) %>%
+  mutate(experiment_length = max(treatment_year)) %>%
+  ungroup() %>%
+  select(database, exp_unit, site_code, project_name, community_type, plot_id, 
+         calendar_year, treatment_year, experiment_length, treatment, trt_type,
+         plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax,
+         num_codominants, richness, Evar) %>%
   rename(gamma_rich=rrich) %>% 
-  filter(project_name != "NutNet") #remove overlapping sites from NutNet
+  filter(project_name != "NutNet")
+  
 
 unique(corre$trt_type)
 
 
-#GEx
-gex <- read_csv('data/GEx/GEx_codominants_list_20240213.csv')%>%
+#gex
+# 
+# gex1 <- list.files("data/gex", pattern = "gex", full.names = TRUE) %>% 
+#   lapply(read_csv) %>% 
+#   bind_rows() %>% 
+#   right_join(read_csv('data/gex/1gex_codominants_list_20240213.csv')) %>% 
+#   select(-genus_species, -relcov, -rank) %>% 
+#   unique()
+ 
+  
+gex <- read_csv('data/gex/1gex_codominants_list_20240213.csv')%>%
   select(-genus_species, -relcov, -rank)%>%
-  unique()%>%
-  left_join(read_csv('data/GEx/gex_richEven_20240213.csv'))%>%
-  left_join(read_csv('data/GEx/GEx-metadata-with-other-env-layers-v2.csv'))%>%
-  mutate(database='GEx', project_name='NA', community_type='NA', trt_type=ifelse(trt=='G', 'control', 'herb_removal'), plot_permenant='NA', MAT=bio1/10)%>%
-  rename(site_code=site, plot_id=block, calendar_year=year, treatment_year=exage, plot_id=block, treatment=trt, plot_size_m2=PlotSize, MAP=bio12, gamma_rich=sprich,anpp=ANPP)%>%
-  group_by(site_code, plot_id, treatment)%>%
-  mutate(experiment_length=max(treatment_year))%>%
-  ungroup()%>%
-  group_by(site_code, project_name, community_type, calendar_year, treatment)%>%
-  mutate(plot_number=length(plot_id))%>%
-  ungroup()%>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
+  unique()%>% 
+  left_join(read_csv('data/gex/gex_richEven_20240213.csv'))%>%
+  left_join(read_csv('data/gex/gex-metadata-with-other-env-layers-v2.csv'))%>%
+  unique() %>% 
+  mutate(database='gex', 
+         project_name='NA', 
+         community_type='NA',
+         trt_type=ifelse(trt=='G', 'control', 'herb_removal'), 
+         plot_permenant='NA', 
+         MAT=bio1/10)%>%
+  rename(site_code = site,
+         plot_id = block, 
+         calendar_year = year, 
+         treatment_year = exage,
+         plot_id = block, 
+         treatment = trt, 
+         plot_size_m2 = PlotSize, 
+         MAP = bio12,
+         gamma_rich = sprich,
+         anpp = ANPP)%>%
+  group_by(site_code, plot_id, treatment) %>%
+  mutate(experiment_length = max(treatment_year)) %>%
+  ungroup() %>%
+  group_by(site_code, project_name, community_type, calendar_year, treatment) %>%
+  mutate(plot_number = length(plot_id)) %>%
+  ungroup() %>%
+  select(database, exp_unit, site_code, project_name, community_type, plot_id, 
+         calendar_year, treatment_year, treatment, trt_type, plot_size_m2, 
+         plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length,
+         Cmax, num_codominants, richness, Evar)
 
 unique(gex$trt_type)
+  
+  
 
 #NutNet
 nutnetANPP <- read_csv('data/nutnet/comb-by-plot-clim-soil-diversity_2023-11-07.csv')%>%
@@ -134,12 +173,22 @@ nutnetSiteInfo <- read_csv('data/nutnet/comb-by-plot-clim-soil-diversity_2023-11
 nutnet <- read_csv('data/nutnet/NutNet_codominants_list_plot_20240213.csv')%>%
   select(exp_unit, site_code, plot, year, year_trt, trt, Cmax, num_codominants)%>%
   unique()%>%
-  left_join(read_csv('data/nutnet/nutnet_plot_richEven_20240213.csv'))%>%
-  left_join(nutnetSiteInfo)%>%
-  mutate(database='NutNet', project_name='NA', community_type='NA', plot_size_m2=1, plot_permenant='y')%>%
-  mutate(trt_type=ifelse(year_trt<1, 'control', ifelse(trt=='Control', 'control', ifelse(trt=='Fence', 'herb_removal', ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal', ifelse(trt=='N', 'N', ifelse(trt=='P', 'P', ifelse(trt=='K', 'K', ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
+  left_join(read_csv('data/nutnet/nutnet_plot_richEven_20240213.csv')) %>% 
+  left_join(nutnetSiteInfo) %>%
+  mutate(database='NutNet', project_name='NA', community_type='NA', plot_size_m2=1, plot_permenant='y',
+         trt_type=ifelse(year_trt<1, 'control',
+                  ifelse(trt=='Control', 'control',
+                  ifelse(trt=='Fence', 'herb_removal', 
+                  ifelse(trt=='NPK+Fence', 'mult_nutrient*herb_removal',
+                  ifelse(trt=='N', 'N',
+                  ifelse(trt=='P', 'P', 
+                  ifelse(trt=='K', 'K', 
+                  ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
   rename(plot_id=plot, calendar_year=year, treatment_year=year_trt, treatment=trt)%>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, num_codominants, richness, Evar)
+  select(database, exp_unit, site_code, project_name, community_type, plot_id,
+         calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number,
+         plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, 
+         num_codominants, richness, Evar)
 
 unique(nutnet$trt_type)
 
@@ -147,35 +196,39 @@ unique(nutnet$trt_type)
 
 #fix problem where if communities are completely even, Cmax=0 and multiple levels are listed for the plot; this needs to be fixed in original code
 
-individualExperiments <- rbind(corre, gex, nutnet)%>%
-  mutate(num_codominants_fix=ifelse(Cmax==0, richness, num_codominants))%>%
-  ungroup()%>%
-  select(-num_codominants)%>%
-  rename(num_codominants=num_codominants_fix)%>%
+individualExperiments <- rbind(corre, gex, nutnet) %>%
+  mutate(num_codominants_fix = ifelse(Cmax==0, richness, num_codominants)) %>%
+  ungroup() %>%
+  select(-num_codominants) %>%
+  rename(num_codominants = num_codominants_fix) %>%
   unique()
 
 unique(individualExperiments$trt_type) # identify what treatments are
 
 expInfo <- individualExperiments%>%
-  select(exp_unit, database, site_code, project_name, community_type, plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, trt_type)%>%
+  select(exp_unit, database, site_code, project_name, community_type, 
+         plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp,
+         trt_type)%>%
   unique()
 
 
 #-----abundance cutoffs of codominance-----
 
-correAbund <- read_csv('data/CoRRE/corre_codominantsRankAll_202402091.csv') %>% 
+correAbund <- read_csv('data/corre/rank_corre_codominants_202402091.csv') %>% 
   select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
-GExAbund <- read_csv('data/GEx/gex_codominantsRankAll_202402091.csv') %>% 
+
+gexAbund <- read_csv('data/gex/gex_codominantsRankAll_202402091.csv') %>% 
   rename(site_code=site, treatment=trt, calendar_year=year) %>% 
   mutate(plot_id=paste(block, treatment, sep='_'),
          project_name=0, community_type=0) %>% 
   select(exp_unit, site_code, project_name, plot_id, community_type, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+
 nutnetAbund <- read_csv('data/nutnet/NutNet_codominantsRankAll_20240213.csv') %>% 
   rename(calendar_year=year, plot_id=plot, treatment=trt) %>% 
   mutate(project_name=0, community_type=0) %>% 
   select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
 
-allAbund <- rbind(correAbund, GExAbund, nutnetAbund) 
+allAbund <- rbind(correAbund, gexAbund, nutnetAbund) 
 
 replicatesAll <- allAbund %>% select(exp_unit) %>% unique() #69,886 individual data points (plot*year combinations)
 replicatesSpatial <- allAbund %>% select(site_code, project_name, community_type, plot_id) %>% unique() #12,088 individual plots
@@ -263,19 +316,18 @@ ggplot(df_grouped,
   geom_bar(aes(x = factor(group, level = c('monodominated', 'codominated', 'tridominated', 'even')))) +
   theme_minimal()
 
-# calculate mode for each year, site, proj, community, treatment, plot
+# subset controls 
+df_control <- df_mode %>%
+  filter(treat_type %in% c("control", "Control", "G"))
+# above: is the treatment "reference" also a control group?
+# above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
+
+# calculate mode inc control for each year, site, proj, community, treatment, plot
 df_mode <- df_grouped %>%  
   mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% 
   group_by(site_proj_comm, site_code, project_name, community_type, plot_id, treat_type, calendar_year) %>% 
   reframe(mode = Mode(num_group)) %>% # mode function must be capital here
   ungroup()  
-
-
-# subset controls 
-df_control <- df_mode %>% 
-  filter(treat_type %in% c("control", "Control", "G")) 
-# above: is the treatment "reference" also a control group?
-# above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
 
 # calculate mode across all years of a treatment just for control groups 
 df_mode2 <- df_control %>%  
@@ -374,7 +426,7 @@ nutnetControls <- individualExperiments%>%
   filter(database=='NutNet', treatment_year==0) #just pre-treatment for NutNet, so max number of plots can be included
 
 controlsIndExp <- individualExperiments%>%
-  filter(database %in% c('CoRRE', 'GEx'), trt_type=='control')%>% #control plots only
+  filter(database %in% c('corre', 'gex'), trt_type=='control')%>% #control plots only
   rbind(nutnetControls)%>%
   group_by(site_code, project_name, community_type, plot_id)%>%
   summarise(num_codominants_temporal=mean(num_codominants), Evar_temporal=mean(Evar), richness_temporal=mean(richness))%>% #mean number of codominant species in a plot over time
@@ -390,7 +442,7 @@ controlsIndExp <- individualExperiments%>%
 
 
 #-----incidence of codom in corre and nutnet-----
-ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet', 'GEx')), aes(x=codominance)) +
+ggplot(data=subset(controlsIndExp, database %in% c('corre', 'NutNet', 'gex')), aes(x=codominance)) +
   geom_histogram(fill='white', color='black', stat='count') +
   xlab('Number of Codominants') + ylab('Count') +
   coord_cartesian(ylim=c(0,300)) +
@@ -457,7 +509,7 @@ ggarrange(MAPfig, MATfig, richnessFig, anppFig,
 
 
 #-----parameter space filled by corre and nutnet-----
-ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=num_codominants_restricted)) +
+ggplot(data=subset(controlsIndExp, database %in% c('corre', 'NutNet')), aes(x=num_codominants_restricted)) +
   geom_density(binwidth=1, fill='white', color='black') +
   ylab('Count') + xlab('Number of Codominants')
 
@@ -465,7 +517,7 @@ ggplot(data=subset(controlsIndExp, database %in% c('CoRRE', 'NutNet')), aes(x=nu
 
 #-----plot-level drivers of co-dominance-----
 controlsPlot <- individualExperiments%>%
-  mutate(keep=ifelse(database=='NutNet'&treatment_year==0, 1, ifelse(database %in% c('CoRRE', 'GEx') & trt_type=='control', 1, 0)))%>%
+  mutate(keep=ifelse(database=='NutNet'&treatment_year==0, 1, ifelse(database %in% c('corre', 'gex') & trt_type=='control', 1, 0)))%>%
   filter(keep==1)%>%
   # group_by(site_code, project_name, community_type, plot_id, plot_size_m2)%>%
   # summarise(num_codominants=mean(num_codominants), richness=mean(richness), Evar=mean(Evar))%>%
@@ -528,14 +580,14 @@ ggplot(data=subset(controlsPlot, !is.na(plot_size_m2) & richness<130),
 
 
 #-----global change treatment effects on codominance-----
-correNlevels <- read_csv('CoRRE\\ExperimentInformation_March2019.csv')%>%
+correNlevels <- read_csv('corre\\ExperimentInformation_March2019.csv')%>%
   filter(trt_type=='N')%>%
   select(site_code, project_name, community_type, trt_type, n)%>%
   unique()%>%
   group_by(site_code, project_name, community_type)%>%
   mutate(n_levels=length(n))%>%
   ungroup()%>%
-  mutate(database='CoRRE')%>%
+  mutate(database='corre')%>%
   select(-n)%>%
   unique()
 
@@ -554,13 +606,13 @@ trtCodom <- individualExperiments%>%
   mutate(codom_RR=log(num_codominants/num_codominants_control))%>%
   left_join(correNlevels)%>%
   mutate(n_levels=ifelse(database=='NutNet'&trt_type=='N', 1, ifelse(trt_type!='N', NA, n_levels)))%>%
-  left_join(read_csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
+  left_join(read_csv('corre\\ExperimentInformation_March2019.csv'))%>%
   #create columns for N effect
-  mutate(n=ifelse(database=='NutNet'&treatment %in% c('N', 'NP', 'NK', 'NPK', 'NPK+Fence'), 10, ifelse(database=='GEx', 0, ifelse(database=='NutNet'&treatment %in% c('P', 'K', 'PK', 'Fence', 'Control'), 0, n))))%>%
+  mutate(n=ifelse(database=='NutNet'&treatment %in% c('N', 'NP', 'NK', 'NPK', 'NPK+Fence'), 10, ifelse(database=='gex', 0, ifelse(database=='NutNet'&treatment %in% c('P', 'K', 'PK', 'Fence', 'Control'), 0, n))))%>%
   mutate(trt_type_2=ifelse(trt_type=='N'&n<10, 'N<10', ifelse(trt_type=='N'&n>=10, 'N>10', as.character(trt_type))))%>%
   select(database, site_code, project_name, community_type, trt_type, trt_type_2, treatment, treatment_year, plot_size_m2, codom_RR, n_levels, n, p, num_codominants, num_codominants_control)%>%
   #create columns for P effect
-  mutate(p=ifelse(database=='NutNet'&treatment %in% c('P', 'NP', 'PK', 'NPK', 'NPK+Fence'), 10, ifelse(database=='GEx', 0, ifelse(database=='NutNet'&treatment %in% c('N', 'K', 'NK', 'Fence', 'Control'), 0, p))))%>%
+  mutate(p=ifelse(database=='NutNet'&treatment %in% c('P', 'NP', 'PK', 'NPK', 'NPK+Fence'), 10, ifelse(database=='gex', 0, ifelse(database=='NutNet'&treatment %in% c('N', 'K', 'NK', 'Fence', 'Control'), 0, p))))%>%
   mutate(trt_type_2=ifelse(trt_type=='P'&p<10, 'P<10', ifelse(trt_type=='P'&p>=10, 'P>10', as.character(trt_type))))%>%
   select(database, site_code, project_name, community_type, trt_type, trt_type_2, treatment, treatment_year, plot_size_m2, codom_RR, n_levels, n, p, num_codominants, num_codominants_control)%>%
   #this includes all years for each site -- consider for later analyses what to do about time
@@ -577,12 +629,12 @@ subsetTrtCodom <- trtCodom%>%
            trt_type %in% c('drought', 'herb_removal', 'irr', 'mult_nutrient', 'N', 'N*P', 'P', 'K', 'mult_nutrient*herb_removal'))
 
 
-#-----comparing N effects in CoRRE and NutNet-----
+#-----comparing N effects in corre and NutNet-----
 codomN <- subsetTrtCodom%>%
   filter(trt_type=='N')%>%
   left_join(correNlevels)%>%
-  mutate(database_2=ifelse(database=='NutNet', 'NutNet', ifelse(database=='CoRRE'&n<10, 'CoRRE n<10', 'CoRRE n>=10')))%>%
-  mutate(database_3=ifelse(database_2 %in% c('NutNet', 'CoRRE n>=10'),  'N>=10', 'N<10'))%>%
+  mutate(database_2=ifelse(database=='NutNet', 'NutNet', ifelse(database=='corre'&n<10, 'corre n<10', 'corre n>=10')))%>%
+  mutate(database_3=ifelse(database_2 %in% c('NutNet', 'corre n>=10'),  'N>=10', 'N<10'))%>%
   mutate(n_levels_cat=ifelse(n_levels>1, 'yes', 'no'))
 
 
@@ -591,14 +643,14 @@ summary(codomNModel <- lme(codom_RR ~ as.factor(database),
                            data=codomN, 
                            random=~1|plot_size_m2))
 check_model(codomNModel)
-anova(codomNModel) #CoRRE significantly lower effect than NutNet
+anova(codomNModel) #corre significantly lower effect than NutNet
 lsmeans(codomNModel, pairwise~as.factor(database), adjust="tukey")
 
 ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean, fill=database)) +
   geom_bar(position=position_dodge(), stat="identity") +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
-  scale_x_discrete(limits=c('NutNet', 'CoRRE')) +
+  scale_x_discrete(limits=c('NutNet', 'corre')) +
   scale_fill_manual(values=c('#51BBB1', '#EA8B2F')) +
   coord_cartesian(ylim=c(-0.33, 0.05)) +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20), legend.position='none') +
@@ -611,15 +663,15 @@ summary(codomNModel <- lme(codom_RR ~ as.factor(database_2),
                            data=codomN, 
                            random=~1|plot_size_m2))
 check_model(codomNModel)
-anova(codomNModel) #no difference in N effect between CoRRE and NutNet when N added is >=10 g/m2
+anova(codomNModel) #no difference in N effect between corre and NutNet when N added is >=10 g/m2
 lsmeans(codomNModel, pairwise~as.factor(database_2), adjust="tukey")
 
 ggplot(data=barGraphStats(data=codomN, variable="codom_RR", byFactorNames=c("database_2")), aes(x=database_2, y=mean, fill=database_2)) +
   geom_bar(position=position_dodge(), stat="identity") +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
   ylab("ln RR (Number of Codominants)") +
-  scale_x_discrete(limits=c('NutNet', 'CoRRE n>=10', 'CoRRE n<10'),
-                   labels=c('NutNet\nN=10 gm2', 'CoRRE\nN>10 gm2', 'CoRRE\nN<10 gm2')) +
+  scale_x_discrete(limits=c('NutNet', 'corre n>=10', 'corre n<10'),
+                   labels=c('NutNet\nN=10 gm2', 'corre\nN>10 gm2', 'corre\nN<10 gm2')) +
   coord_cartesian(ylim=c(-0.5, 0.3)) +
   scale_fill_manual(values=c('#51BBB1', '#51BBB1', '#EA8B2F')) +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20), legend.position='none') +
@@ -679,7 +731,7 @@ ggplot(data=subset(codomN, n_levels>1), aes(x=n, y=codom_RR)) +
 nLevelsYes <- codomN%>%filter(n_levels>1)%>%mutate(n_levels_cat='all')
 nLevelsGraph <- codomN%>%mutate(n_levels_cat=ifelse(n_levels_cat=='no', 'all', n_levels_cat))%>%rbind(nLevelsYes)
 
-ggplot(data=subset(nLevelsGraph, database=='CoRRE'&n<60), aes(x=n, y=codom_RR, color=n_levels_cat)) +
+ggplot(data=subset(nLevelsGraph, database=='corre'&n<60), aes(x=n, y=codom_RR, color=n_levels_cat)) +
   geom_point(size=3) +
   geom_smooth(se=F, method='gam', size=2) +
   scale_color_manual(values=c('#51BBB1','darkgrey')) +
@@ -693,7 +745,7 @@ ggplot(data=subset(nLevelsGraph, database=='CoRRE'&n<60), aes(x=n, y=codom_RR, c
 # #random draws to illustrate gain in power from including both databases
 # #make a new dataframe with just N>=10 g/m2
 # codomNdrawsBoth <- codomN%>%
-#   filter(database_2 %in% c('NutNet', 'CoRRE n>=10'))%>%
+#   filter(database_2 %in% c('NutNet', 'corre n>=10'))%>%
 #   mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
 # 
 # #makes an empty dataframe
@@ -728,28 +780,28 @@ ggplot(data=subset(nLevelsGraph, database=='CoRRE'&n<60), aes(x=n, y=codom_RR, c
 # }
 # 
 # #corre only
-# codomNdrawsCoRRE <- codomN%>%
-#   filter(database_2 %in% c('CoRRE n>=10'))%>%
+# codomNdrawscorre <- codomN%>%
+#   filter(database_2 %in% c('corre n>=10'))%>%
 #   mutate(exp_unit=paste(database, site_code, project_name, community_type, treatment, sep='::'))
 # 
 # #makes an empty dataframe
-# randomDrawsCoRRE=data.frame(row.names=1) 
+# randomDrawscorre=data.frame(row.names=1) 
 # 
 # #calculate effect size means
-# for(i in 1:length(codomNdrawsCoRRE$exp_unit)) {
-#   pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawsCoRRE$codom_RR, size=i, replace=F))))%>%
-#     mutate(sample=i, database='CoRRE')
+# for(i in 1:length(codomNdrawscorre$exp_unit)) {
+#   pull <- as.data.frame(replicate(n=1000, expr = mean(sample(codomNdrawscorre$codom_RR, size=i, replace=F))))%>%
+#     mutate(sample=i, database='corre')
 #   
 #   colnames(pull)[1] <- 'mean_codom_RR'
 #   
-#   randomDrawsCoRRE=rbind(pull, randomDrawsCoRRE)
+#   randomDrawscorre=rbind(pull, randomDrawscorre)
 # }
 # 
 # 
-# randomDraws <- rbind(randomDrawsBoth, randomDrawsNutNet, randomDrawsCoRRE)
+# randomDraws <- rbind(randomDrawsBoth, randomDrawsNutNet, randomDrawscorre)
 # 
 # #corre only
-# ggplot(data=subset(randomDraws, database=='CoRRE'), aes(x=sample, y=mean_codom_RR, color=database)) +
+# ggplot(data=subset(randomDraws, database=='corre'), aes(x=sample, y=mean_codom_RR, color=database)) +
 #   geom_point() +
 #   scale_color_manual(values=c('#51BBB1')) +
 #   xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
@@ -759,7 +811,7 @@ ggplot(data=subset(nLevelsGraph, database=='CoRRE'&n<60), aes(x=n, y=codom_RR, c
 # #export 800x600
 # 
 # #corre and nutnet
-# ggplot(data=subset(randomDraws, database %in% c('CoRRE', 'NutNet')), aes(x=sample, y=mean_codom_RR, color=database)) +
+# ggplot(data=subset(randomDraws, database %in% c('corre', 'NutNet')), aes(x=sample, y=mean_codom_RR, color=database)) +
 #   geom_point() +
 #   scale_color_manual(values=c('#51BBB1', '#EA8B2F')) +
 #   xlab('Sample Size') + ylab('ln RR (Number of Codominants)') +
@@ -791,38 +843,38 @@ anova(codomPthresholdModel) #N level affects loss of codom spp
 ggplot(data=subset(subsetTrtCodom, trt_type=='P'), aes(x=p, y=codom_RR)) + geom_point() + geom_smooth(method='lm')
 
 
-#-----comparing herbivore removal effects in GEx and NutNet-----
+#-----comparing herbivore removal effects in gex and NutNet-----
 summary(codomHerbModel <- lme(codom_RR ~ as.factor(database), 
-                         data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), 
+                         data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'gex')), 
                          random=~1|site_code))
 check_model(codomHerbModel)
-anova(codomHerbModel) #no difference in herb effect between CoRRE and NutNet
+anova(codomHerbModel) #no difference in herb effect between corre and NutNet
 lsmeans(codomHerbModel, pairwise~as.factor(database), adjust="tukey")
 
-ggplot(data=barGraphStats(data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx')), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
+ggplot(data=barGraphStats(data=subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'gex')), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
-  scale_x_discrete(limits=c('NutNet', 'GEx')) + ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits=c('NutNet', 'gex')) + ylab("ln RR (Number of Codominants)") +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
   geom_text(x=2, y=-0.27, label="*", size=10) 
 #export at 400x600
 
 #herbivore type
-codomHerb <- subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'GEx'))%>%
+codomHerb <- subset(subsetTrtCodom, trt_type=='herb_removal' & database %in% c('NutNet', 'gex'))%>%
   left_join(read_csv('nutnet//nutnet_grazer types.csv'))%>%
-  mutate(large_grazers=ifelse(database=='GEx', 'yes', as.character(large_grazers)))
+  mutate(large_grazers=ifelse(database=='gex', 'yes', as.character(large_grazers)))
 
 summary(codomHerbModel <- lme(codom_RR ~ as.factor(database), 
                          data=subset(codomHerb, large_grazers=='yes'), 
                          random=~1|site_code))
 check_model(codomHerbModel)
-anova(codomHerbModel) #no difference in herb effect between CoRRE and NutNet
+anova(codomHerbModel) #no difference in herb effect between corre and NutNet
 lsmeans(codomHerbModel, pairwise~as.factor(database), adjust="tukey")
 
 ggplot(data=barGraphStats(data=subset(codomHerb, large_grazers=='yes'), variable="codom_RR", byFactorNames=c("database")), aes(x=database, y=mean)) +
   geom_bar(position=position_dodge(), stat="identity", fill='#F17236') +
   geom_errorbar(aes(ymin=mean-1.96*se, ymax=mean+1.96*se), position=position_dodge(0.9), width=0.2) +
-  scale_x_discrete(limits=c('NutNet', 'GEx')) + ylab("ln RR (Number of Codominants)") +
+  scale_x_discrete(limits=c('NutNet', 'gex')) + ylab("ln RR (Number of Codominants)") +
   theme(axis.title.x=element_blank(), axis.text.x=element_text(size=20)) +
   geom_text(x=2, y=-0.27, label="*", size=10) 
 #export at 400x600
@@ -830,7 +882,7 @@ ggplot(data=barGraphStats(data=subset(codomHerb, large_grazers=='yes'), variable
 #power together vs separate databases
 with(subset(subsetTrtCodom, trt_type=='herb_removal'), t.test(codom_RR, mu=0)) #t = -2.8419, df = 280, p-value = 0.004814 ***
 with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='NutNet'), t.test(codom_RR, mu=0)) # = -1.2386, df = 79, p-value = 0.2192 ***
-with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='GEx'), t.test(codom_RR, mu=0)) #t = -2.9257, df = 192, p-value = 0.003851 ***
+with(subset(subsetTrtCodom, trt_type=='herb_removal'&database=='gex'), t.test(codom_RR, mu=0)) #t = -2.9257, df = 192, p-value = 0.003851 ***
 
 
 #compare across treatment types
@@ -1039,9 +1091,9 @@ bothNaddHerbRem <- herbRem%>%
   filter(both_trt==2)%>%
   left_join()
 
-sameSppCorre <- read_csv('CoRRE\\corre_codominants_list_01282021.csv')%>%
+sameSppcorre <- read_csv('corre\\corre_codominants_list_01282021.csv')%>%
   filter(site_code %in% c('KLU', 'NIN', 'TRA'))%>%
-  left_join(read_csv('CoRRE\\ExperimentInformation_March2019.csv'))%>%
+  left_join(read_csv('corre\\ExperimentInformation_March2019.csv'))%>%
   select(site_code, project_name, community_type, treatment_year, plot_id, trt_type, genus_species, relcov)%>%
   left_join(trtCodom)%>%
   filter(!is.na(database))%>%

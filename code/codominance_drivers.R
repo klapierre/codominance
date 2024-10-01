@@ -337,7 +337,6 @@ df_mode_q1 <- df_control %>%
 
 saveRDS(df_mode_q1, file = "data_formatted/df_mode_q1.rds")
 
-
 df_mode3 <- df_mode2 %>% 
   group_by(site_code) %>% # generate mode per site because there may be multiple proj/comm per site
   reframe(mode_site = Mode(mode_yr)) %>% 

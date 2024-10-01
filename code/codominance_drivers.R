@@ -316,12 +316,6 @@ ggplot(df_grouped,
   geom_bar(aes(x = factor(group, level = c('monodominated', 'codominated', 'tridominated', 'even')))) +
   theme_minimal()
 
-# subset controls 
-df_control <- df_mode %>%
-  filter(treat_type %in% c("control", "Control", "G"))
-# above: is the treatment "reference" also a control group?
-# above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
-
 # calculate mode inc control for each year, site, proj, community, treatment, plot
 df_mode <- df_grouped %>%  
   mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% 
@@ -329,11 +323,20 @@ df_mode <- df_grouped %>%
   reframe(mode = Mode(num_group)) %>% # mode function must be capital here
   ungroup()  
 
+# subset controls 
+df_control <- df_mode %>%
+  filter(treat_type %in% c("control", "Control", "G"))
+# above: is the treatment "reference" also a control group?
+# above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
+
 # calculate mode across all years of a treatment just for control groups 
-df_mode2 <- df_control %>%  
+df_mode_q1 <- df_control %>%  
   group_by(site_code, project_name, community_type) %>% # mode generated from these
   reframe(mode_yr = Mode(mode)) %>%   # 549 values
   ungroup()
+
+saveRDS(df_mode_q1, file = "data_formatted/df_mode_q1.rds")
+
 
 df_mode3 <- df_mode2 %>% 
   group_by(site_code) %>% # generate mode per site because there may be multiple proj/comm per site

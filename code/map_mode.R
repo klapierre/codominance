@@ -3,9 +3,26 @@ library(DescTools)
 
 df_mode_q1 <- readRDS("data_formatted/df_mode_q1.rds")
 
+df_mode_ashley <- df_mode_q1 %>% 
+  mutate(site_proj_comm = paste(site_code, project_name, community_type, sep= "_"))
+
+
 Codominance_AllSiteData <- read_csv("Codominance_AllSiteData.csv")
 Codominance_AllSiteData <- Codominance_AllSiteData %>% 
   mutate(site_proj_comm = ifelse(is.na(site_proj_comm), site_code, site_proj_comm))
+
+df_combined <- df_mode_ashley %>% 
+  left_join(Codominance_AllSiteData, by = "site_proj_comm")
+
+
+
+
+
+
+
+
+
+
 
 corre_df <- read.csv("corre_codominantsRankAll_202402091.csv")
 gex_codominantsRankAll_202402091 <- read_csv("gex_codominantsRankAll_202402091.csv")

@@ -9,7 +9,7 @@ df_mode_ashley <- df_mode_q1 %>%
                                  paste(site_code, project_name, community_type, sep= "_")))
 
 
-Codominance_AllSiteData <- read_csv("Codominance_AllSiteData.csv")
+Codominance_AllSiteData <- read.csv("Environmental Data/Codominance_AllSiteData.csv")
 Codominance_AllSiteData <- Codominance_AllSiteData %>% 
   mutate(site_proj_comm = ifelse(is.na(site_proj_comm), site_code, site_proj_comm))
 
@@ -24,7 +24,7 @@ df_combined <- df_mode_ashley %>%
            site_proj_comm!="yarra.au_NutNet_0")
 
 
-write_csv(df_combined, "df_combined.csv")
+write.csv(df_combined, "df_combined.csv", row.names=FALSE)
 
 
 

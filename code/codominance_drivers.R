@@ -7,12 +7,8 @@
 
 ### edited by Ashley LaRoque
 
-# load packages
-pacman::p_load(tidyverse,
-               nlme,
-               lsmeans,
-               performance,
-               ggpubr)
+source(here::here("code/functions.R"))
+source(here::here("code/library.R"))
 
 # -----ggplot theme set-----
 theme_set(theme_bw())
@@ -23,47 +19,11 @@ theme_update(axis.title.x=element_text(size=20, vjust=-0.35), axis.text.x=elemen
              legend.title=element_blank(), legend.text=element_text(size=20))
 
 
-# -----homemade functions-----
-###bar graph summary statistics function
-#barGraphStats(data=, variable="", byFactorNames=c(""))
-
-barGraphStats <- function(data, variable, byFactorNames) {
-  count <- length(byFactorNames)
-  N <- aggregate(data[[variable]], data[byFactorNames], FUN=length)
-  names(N)[1:count] <- byFactorNames
-  names(N) <- sub("^x$", "N", names(N))
-  mean <- aggregate(data[[variable]], data[byFactorNames], FUN=mean)
-  names(mean)[1:count] <- byFactorNames
-  names(mean) <- sub("^x$", "mean", names(mean))
-  sd <- aggregate(data[[variable]], data[byFactorNames], FUN=sd)
-  names(sd)[1:count] <- byFactorNames
-  names(sd) <- sub("^x$", "sd", names(sd))
-  preSummaryStats <- merge(N, mean, by=byFactorNames)
-  finalSummaryStats <- merge(preSummaryStats, sd, by=byFactorNames)
-  finalSummaryStats$se <- finalSummaryStats$sd / sqrt(finalSummaryStats$N)
-  return(finalSummaryStats)
-}  
-
-#mode
-mode <- function(codes){
-  which.max(tabulate(codes))
-}
-
-# mode (used to calculate mode for codominance groups across years)
-Mode <- function(x, na.rm = FALSE) {
-  if(na.rm){
-    x = x[!is.na(x)]
-  }
-  
-  ux <- unique(x)
-  return(ux[which.max(tabulate(match(x, ux)))])
-}
-
-
 # -----read in global databases (corre,  gex, NutNet)-----
 
 #corre
 
+# ashley trying to figure out how to clean up reading multiple files
 # corre1 <- list.files("data/corre", pattern = "corre", full.names = TRUE) %>% 
 #   lapply(read_csv) %>% 
 #   bind_rows() %>% 
@@ -332,20 +292,21 @@ df_control <- df_mode %>%
 # calculate mode across all years of a treatment just for control groups 
 df_mode_q1 <- df_control %>%  
   group_by(site_code, project_name, community_type) %>% # mode generated from these
-  reframe(mode_yr = Mode(mode)) %>%   # 549 values
+  reframe(mode_yr = Mode(mode)) %>%  
   ungroup()
 
 saveRDS(df_mode_q1, file = "data_formatted/df_mode_q1.rds")
 
-df_mode3 <- df_mode2 %>% 
-  group_by(site_code) %>% # generate mode per site because there may be multiple proj/comm per site
-  reframe(mode_site = Mode(mode_yr)) %>% 
-  ungroup() %>% 
-  mutate(codom_grouped = case_when(mode_site == 1 ~ 1, 
-                               mode_site == 2 ~ 2.5,
-                               mode_site == 3 ~ 2.5, #collapse 2 and 3 into one category
-                               mode_site >= 4 ~ 4)) 
 
+# df_mode3 <- df_mode2 %>% 
+#   group_by(site_code) %>% # generate mode per site because there may be multiple proj/comm per site
+#   reframe(mode_site = Mode(mode_yr)) %>% 
+#   ungroup() %>% 
+#   mutate(codom_grouped = case_when(mode_site == 1 ~ 1, 
+#                                mode_site == 2 ~ 2.5,
+#                                mode_site == 3 ~ 2.5, #collapse 2 and 3 into one category
+#                                mode_site >= 4 ~ 4)) 
+# 
 
 ## new code for codom question 3 (Ashley's edits)
 

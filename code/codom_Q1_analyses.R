@@ -1,11 +1,11 @@
 
-library(MASS)
-library(foreign)  
-library(Hmisc)
-library(tidyverse)
+source(here::here("code/library.R"))
 
 # read in data frame w/ mode # of codoms #
 doms <- read.csv("df_combined.csv")
+
+  ## or for easy use in R 
+df_combined <- readRDS('data_formatted/df_combined.rds')
 
 
 # boxplots for each predictor #

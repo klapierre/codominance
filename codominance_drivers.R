@@ -214,6 +214,27 @@ filterMean <- rbind(filter1, filter3) %>%
   mutate(drop2=ifelse(is.na(a_drop), 'b_keep', a_drop)) %>% 
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
 
+#continuous codominance
+
+nutnetControls <- individualExperiments%>%
+  filter(database=='NutNet', treatment_year==0) #just pre-treatment for NutNet, so max number of plots can be included
+
+controlsIndExp <- individualExperiments%>%
+  filter(database %in% c('CoRRE', 'GEx'), trt_type=='control')%>% #control plots only
+  rbind(nutnetControls)
+
+continuous_codom <- full_join(controlsIndExp, filterMean) %>% 
+  filter(trt_type %in% c("control","Control")) %>% 
+  group_by(site_proj_comm, plot_id, calendar_year) %>% 
+  summarise(continuous_num = mean(num_codominants)) %>% 
+  group_by(site_proj_comm, plot_id) %>% 
+  summarise(mean_contin2 = )
+
+
+
+
+
+
 #plots for gut check
 site_proj_comm_vector <- unique(filterMean$site_proj_comm)
 

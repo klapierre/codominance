@@ -278,9 +278,9 @@ ggplot(df_grouped,
 
 # calculate mode inc control for each year, site, proj, community, treatment, plot
 df_mode <- df_grouped %>%  
-  mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% #817907
-  group_by(site_proj_comm, site_code, project_name, community_type, plot_id, treat_type, calendar_year) %>% 
-  reframe(mode = Mode(num_group)) %>% # mode function must be capital here #69886
+  mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) %>% 
+  group_by(site_proj_comm, site_code, project_name, community_type, plot_id, treat_type) %>% 
+  reframe(plot_codom = Mode(num_group)) %>% # mode function must be capital here 
   ungroup()  
 
 # subset controls 
@@ -290,9 +290,9 @@ df_control <- df_mode %>%
 # above: there are some other items in 'treatment' that are labeled as control in 'trt_type'/'treat_type', is this correct?
 
 # calculate mode across all years of a treatment just for control groups 
-df_mode_q1 <- df_control %>%  #17013
+df_mode_q1 <- df_control %>%  
   group_by(site_code, project_name, community_type) %>% # mode generated from these
-  reframe(mode_yr = Mode(mode)) %>%  #549
+  reframe(mode_yr = Mode(plot_codom)) %>%  
   ungroup()
 
 saveRDS(df_mode_q1, file = "data_formatted/df_mode_q1.rds")

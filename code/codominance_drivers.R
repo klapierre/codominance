@@ -35,7 +35,7 @@ theme_update(axis.title.x=element_text(size=20, vjust=-0.35), axis.text.x=elemen
 
 
 corre <- read_csv('data/corre/1corre_codominants_list_202402091.csv')%>%
-  select(-block, -genus_species, -relcov, -rank)%>%
+  dplyr::select(-block, -genus_species, -relcov, -rank)%>%
   unique()%>%
   left_join(read_csv('data/corre/corre_richEven_20240208.csv'))%>%
   left_join(read_csv('data/corre/corre_plot_size.csv'))%>%
@@ -49,7 +49,7 @@ corre <- read_csv('data/corre/1corre_codominants_list_202402091.csv')%>%
   group_by(site_code, project_name, community_type) %>%
   mutate(experiment_length = max(treatment_year)) %>%
   ungroup() %>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, 
+  dplyr::select(database, exp_unit, site_code, project_name, community_type, plot_id, 
          calendar_year, treatment_year, experiment_length, treatment, trt_type,
          plot_size_m2, plot_number, plot_permenant, MAP, MAT, rrich, anpp, Cmax,
          num_codominants, richness, Evar) %>%
@@ -71,7 +71,7 @@ unique(corre$trt_type)
  
   
 gex <- read_csv('data/gex/1gex_codominants_list_20240213.csv')%>%
-  select(-genus_species, -relcov, -rank)%>%
+  dplyr::select(-genus_species, -relcov, -rank)%>%
   unique()%>% 
   left_join(read_csv('data/gex/gex_richEven_20240213.csv'))%>%
   left_join(read_csv('data/gex/gex-metadata-with-other-env-layers-v2.csv'))%>%
@@ -98,7 +98,7 @@ gex <- read_csv('data/gex/1gex_codominants_list_20240213.csv')%>%
   group_by(site_code, project_name, community_type, calendar_year, treatment) %>%
   mutate(plot_number = length(plot_id)) %>%
   ungroup() %>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id, 
+  dplyr::select(database, exp_unit, site_code, project_name, community_type, plot_id, 
          calendar_year, treatment_year, treatment, trt_type, plot_size_m2, 
          plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length,
          Cmax, num_codominants, richness, Evar)
@@ -127,11 +127,11 @@ nutnetSiteInfo <- read_csv('data/nutnet/comb-by-plot-clim-soil-diversity_2023-11
   ungroup()%>%
   rename(MAP=MAP_v2, MAT=MAT_v2, gamma_rich=site_richness)%>%
   left_join(nutnetANPP)%>%
-  select(site_code, trt, year, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number)%>%
+  dplyr::select(site_code, trt, year, MAP, MAT, gamma_rich, anpp, experiment_length, plot_number)%>%
   unique()
 
 nutnet <- read_csv('data/nutnet/NutNet_codominants_list_plot_20240213.csv')%>%
-  select(exp_unit, site_code, plot, year, year_trt, trt, Cmax, num_codominants)%>%
+  dplyr::select(exp_unit, site_code, plot, year, year_trt, trt, Cmax, num_codominants)%>%
   unique()%>%
   left_join(read_csv('data/nutnet/nutnet_plot_richEven_20240213.csv')) %>% 
   left_join(nutnetSiteInfo) %>%
@@ -145,7 +145,7 @@ nutnet <- read_csv('data/nutnet/NutNet_codominants_list_plot_20240213.csv')%>%
                   ifelse(trt=='K', 'K', 
                   ifelse(trt=='NP', 'N*P', 'mult_nutrient')))))))))%>%
   rename(plot_id=plot, calendar_year=year, treatment_year=year_trt, treatment=trt)%>%
-  select(database, exp_unit, site_code, project_name, community_type, plot_id,
+  dplyr::select(database, exp_unit, site_code, project_name, community_type, plot_id,
          calendar_year, treatment_year, treatment, trt_type, plot_size_m2, plot_number,
          plot_permenant, MAP, MAT, gamma_rich, anpp, experiment_length, Cmax, 
          num_codominants, richness, Evar)
@@ -159,14 +159,14 @@ unique(nutnet$trt_type)
 individualExperiments <- rbind(corre, gex, nutnet) %>%
   mutate(num_codominants_fix = ifelse(Cmax==0, richness, num_codominants)) %>%
   ungroup() %>%
-  select(-num_codominants) %>%
+  dplyr::select(-num_codominants) %>%
   rename(num_codominants = num_codominants_fix) %>%
   unique()
 
 unique(individualExperiments$trt_type) # identify what treatments are
 
 expInfo <- individualExperiments%>%
-  select(exp_unit, database, site_code, project_name, community_type, 
+  dplyr::select(exp_unit, database, site_code, project_name, community_type, 
          plot_size_m2, plot_number, plot_permenant, MAP, MAT, gamma_rich, anpp,
          trt_type)%>%
   unique()
@@ -175,24 +175,24 @@ expInfo <- individualExperiments%>%
 #-----abundance cutoffs of codominance-----
 
 correAbund <- read_csv('data/corre/rank_corre_codominants_202402091.csv') %>% 
-  select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+  dplyr::select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
 
-gexAbund <- read_csv('data/gex/gex_codominantsRankAll_202402091.csv') %>% 
+gexAbund <- read_csv('data/GEx/gex_codominantsRankAll_202402091.csv') %>% 
   rename(site_code=site, treatment=trt, calendar_year=year) %>% 
   mutate(plot_id=paste(block, treatment, sep='_'),
          project_name=0, community_type=0) %>% 
-  select(exp_unit, site_code, project_name, plot_id, community_type, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+  dplyr::select(exp_unit, site_code, project_name, plot_id, community_type, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
 
 nutnetAbund <- read_csv('data/nutnet/NutNet_codominantsRankAll_20240213.csv') %>% 
   rename(calendar_year=year, plot_id=plot, treatment=trt) %>% 
   mutate(project_name=0, community_type=0) %>% 
-  select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
+  dplyr::select(exp_unit, site_code, project_name, community_type, plot_id, treatment, calendar_year, num_codominants, genus_species, relcov, rank)
 
 allAbund <- rbind(correAbund, gexAbund, nutnetAbund) 
 
-replicatesAll <- allAbund %>% select(exp_unit) %>% unique() #69,886 individual data points (plot*year combinations)
-replicatesSpatial <- allAbund %>% select(site_code, project_name, community_type, plot_id) %>% unique() #12,088 individual plots
-replicatesExperiment <- allAbund %>% select(site_code, project_name, community_type) %>% unique() #551 experiments
+replicatesAll <- allAbund %>% dplyr::select(exp_unit) %>% unique() #69,886 individual data points (plot*year combinations)
+replicatesSpatial <- allAbund %>% dplyr::select(site_code, project_name, community_type, plot_id) %>% unique() #12,088 individual plots
+replicatesExperiment <- allAbund %>% dplyr::select(site_code, project_name, community_type) %>% unique() #551 experiments
 
 
 #cutoff at 20% abundance for rank 1 species: 
@@ -201,7 +201,7 @@ filter1 <- allAbund %>%
   mutate(drop=ifelse(relcov<30, 'c_borderline',
               ifelse(relcov<20, 'a_drop', 'b_keep'))) %>% 
   filter(drop!='b_keep') %>% #440 (1.1%) of these have cover less than 20% for the single dominant spp; 2843 (7.1%) less than 30%
-  select(exp_unit, drop) %>% 
+  dplyr::select(exp_unit, drop) %>% 
   unique()
 
 # #cutoff at 30% abundance for sum of all codominant species -- this filter is not strict enough, don't do this
@@ -233,7 +233,7 @@ filter3 <- allAbund %>%
   ungroup() %>% 
   filter(mean_cover<20) %>% 
   mutate(drop='a_drop') %>% 
-  select(exp_unit, drop) %>% 
+  dplyr::select(exp_unit, drop) %>% 
   unique()
 
 filterMean <- rbind(filter1, filter3) %>% 
@@ -241,10 +241,10 @@ filterMean <- rbind(filter1, filter3) %>%
   pivot_wider(names_from=drop, values_from=drop) %>% 
   mutate(remove=ifelse(c_borderline=='c_borderline' & a_drop=='a_drop', 1, 0)) %>% 
   filter(is.na(remove)) %>% 
-  select(-remove) %>% 
+  dplyr::select(-remove) %>% 
   pivot_longer(c_borderline:a_drop, names_to='name', values_to='a_drop') %>% 
   filter(!is.na(a_drop)) %>% 
-  select(-name) %>% 
+  dplyr::select(-name) %>% 
   full_join(allAbund) %>% 
   mutate(drop2=ifelse(is.na(a_drop), 'b_keep', a_drop)) %>% 
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))

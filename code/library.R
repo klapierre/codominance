@@ -1,6 +1,7 @@
 # source code for packages to install and load
 install.packages("pacman")
-pacman::p_load(tidyverse,
+pacman::p_load(here,
+              tidyverse,
                nlme,
                lsmeans,
                performance,

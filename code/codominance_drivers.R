@@ -7,8 +7,8 @@
 
 ### edited by Ashley LaRoque
 
+source("code/library.R")
 source(here::here("code/functions.R"))
-source(here::here("code/library.R"))
 
 # -----ggplot theme set-----
 theme_set(theme_bw())

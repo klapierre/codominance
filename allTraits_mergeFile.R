@@ -61,14 +61,17 @@ correNames <- read.csv('CoRRE\\corre2trykey_2021.csv') %>%
 
 correAbund <- read.csv('CoRRE\\CoRRE_RawAbundance_2021.csv') %>% 
   left_join(correNames) %>% 
-  rename(species=species_matched) %>% 
-  select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance)
+  rename(species2=species_matched) %>% 
+  mutate(species=ifelse(is.na(species2), genus_species, species2)) %>% 
+  select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance) 
 
 GExAbund <- read.csv('GEx\\GEx_cleaned_11June2020.csv') %>% 
-  rename(site_code=site, plot_id=plot, treatment=trt, species=genus_species_clean, abundance=relcov, calendar_year=year) %>% 
+  rename(site_code=site, plot_id=plot, treatment=trt, abundance=relcov, calendar_year=year) %>% 
   mutate(project_name=NA, community_type=NA) %>% 
+  mutate(species=ifelse(is.na(genus_species_clean), genus_species, genus_species_clean)) %>% 
   select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance)
 
+###START HERE: a few experiments have multiple data points within each plot (comped multiple subplots). Need to get one value for each plot per species in some way (pick one or average)
 NutNetAbund <- read.csv('NutNet\\full-cover_2023-11-07.csv') %>% 
   left_join(read_csv('NutNet\\NutNet_clean_spp_names_20240710 - Copy.csv')) %>% 
   filter(!(functional_group %in% c('BRYOPHYTE', 'NON-LIVE', 'LIVERWORT', 'LICHEN')),
@@ -101,7 +104,11 @@ relCoverAll <- coverData %>%
 relCoverWide <- relCoverAll %>% 
   select(site_code, project_name, community_type, block, plot_id, calendar_year, 
          treatment, species, rel_cover) %>% 
-  pivot_wider(names_from=species, values_from=rel_cover, values_fill=0, values_fn=unique)
+  group_by(site_code, project_name, community_type, block, plot_id, calendar_year,
+           treatment, species) %>%
+  summarise(length=length(rel_cover)) %>%
+  ungroup() %>%
+  pivot_wider(names_from=species, values_from=rel_cover, values_fill=0)
 
 
 

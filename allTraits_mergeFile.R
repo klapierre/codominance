@@ -52,3 +52,92 @@ allTraits <- continuousTraits %>%
   full_join(categoricalTraits)
 
 # write.csv(allTraits, 'allTraits_CoRREGExNutNet_20241030.csv', row.names=F)
+
+
+##### Figuring out what proportion of cover and species we have all traits for #####
+correNames <- read.csv('CoRRE\\corre2trykey_2021.csv') %>% 
+  select(genus_species, species_matched) %>% 
+  unique()
+
+correAbund <- read.csv('CoRRE\\CoRRE_RawAbundance_2021.csv') %>% 
+  left_join(correNames) %>% 
+  rename(species=species_matched) %>% 
+  select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance)
+
+GExAbund <- read.csv('GEx\\GEx_cleaned_11June2020.csv') %>% 
+  rename(site_code=site, plot_id=plot, treatment=trt, species=genus_species_clean, abundance=relcov, calendar_year=year) %>% 
+  mutate(project_name=NA, community_type=NA) %>% 
+  select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance)
+
+NutNetAbund <- read.csv('NutNet\\full-cover_2023-11-07.csv') %>% 
+  left_join(read_csv('NutNet\\NutNet_clean_spp_names_20240710 - Copy.csv')) %>% 
+  filter(!(functional_group %in% c('BRYOPHYTE', 'NON-LIVE', 'LIVERWORT', 'LICHEN')),
+         live==1) %>% 
+  mutate(species2=paste(New.Genus, New.Species, sep=' ')) %>% 
+  mutate(species=ifelse(species2=='NA NA', Taxon, species2)) %>% 
+  rename(plot_id=plot, treatment=trt, abundance=max_cover, treatment=trt, calendar_year=year) %>% 
+  mutate(project_name=NA, community_type=NA) %>% 
+  select(site_code, project_name, community_type, block, plot_id, treatment, calendar_year, species, abundance)
+
+coverData <- rbind(correAbund, GExAbund, NutNetAbund)
+
+totCover <- coverData %>% 
+  group_by(site_code, project_name, community_type, block, plot_id, calendar_year) %>% 
+  summarize(tot_cover=sum(abundance)) %>% 
+  ungroup()
+
+richness <- coverData %>% 
+  group_by(site_code, project_name, community_type, block, plot_id, calendar_year) %>% 
+  summarize(richness_all=length(abundance)) %>% 
+  ungroup()  
+
+relCoverAll <- coverData %>% 
+  left_join(totCover) %>% 
+  mutate(rel_cover=100*(abundance/tot_cover)) %>% 
+  ungroup() %>%
+  left_join(richness) %>% 
+  left_join(allTraits)
+
+relCoverWide <- relCoverAll %>% 
+  select(site_code, project_name, community_type, block, plot_id, calendar_year, 
+         treatment, species, rel_cover) %>% 
+  pivot_wider(names_from=species, values_from=rel_cover, values_fill=0, values_fn=unique)
+
+
+
+
+###proportion of species remaining if we remove NAs
+
+proportionSppRemain <- relCoverAll %>% 
+  filter(!is.na(LDMC)) %>% 
+  group_by(site_code, project_name, community_type, block, plot_id, calendar_year, richness_all) %>% 
+  summarise(richness_remaining=length(abundance)) %>% 
+  ungroup() %>% 
+  mutate(prop_richness_remaining=richness_remaining/richness_all) %>% 
+  filter(prop_richness_remaining<0.7)
+
+hist(proportionSppRemain$prop_richness_remaining)
+
+test <- proportionSppRemain %>% 
+  select(site_code, project_name, community_type) %>% 
+  unique()
+#if we have a cutoff of 80% of species have traits, then we would drop 464 experiments out of 550
+#cutoff of 70%, then we drop 365 experiments out of 550
+
+
+###percent cover that has traits- this might not be as relevant to our dendrograms
+
+coverWithTraits <- relCoverAll %>% 
+  filter(!is.na(LDMC)) %>% 
+  group_by(site_code, project_name, community_type, block, plot_id, calendar_year, richness_all) %>% 
+  summarise(cover_remaining=sum(rel_cover)) %>% 
+  ungroup() %>% 
+  filter(cover_remaining<80)
+
+test <- coverWithTraits %>% 
+  select(site_code, project_name, community_type) %>% 
+  unique()
+
+#we have 550 experiments (site_proj_comm) and dropping any experiments that have at least one plot*year with <80% cover containing traits results in dropping 400 experiments
+
+hist(coverWithTraits$cover_remaining)

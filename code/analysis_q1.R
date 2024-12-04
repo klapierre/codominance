@@ -47,7 +47,9 @@ chart.Correlation(factors, method = "spearman")
 summary()
 
 # Analyses #
-a <- (multinom(as.factor(mode_yr) ~ MAP * MAT * GDiv * ANPP * HumanDisturbance * N_Deposition, data=doms))
+library(nnet, MASS)
+a <- multinom(factor(df_combined$mode_yr, levels = c(4,3,2,1)) ~ MAP * MAT * GDiv * ANPP * HumanDisturbance * N_Deposition , data=df_combined)
+stepAIC(a, direction = "backward")
 
 coef <- summary(a)$coefficients
 coef
@@ -59,3 +61,12 @@ z <- coef/stderr
 p_values <- 2 * (1 - pnorm(abs(z)))
 p_values
 
+exp(coef(a))
+
+head(round(fitted(a),2))
+
+
+# Mixcat ------------------------------------------------------------------
+library(mixcat)
+npmlt()
+    

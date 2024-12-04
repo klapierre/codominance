@@ -37,8 +37,22 @@ ggplot(doms, aes(x=as.factor(mode_yr), y=N_Deposition))+
   geom_boxplot()+
   coord_flip()
 
+
+factors <-doms[,c(10,11,12,13,14,15)]
+chart.Correlation(factors, method = "spearman")
+
+summary()
+
 # Analyses #
-a <- coef(summary(polr(as.factor(mode_yr) ~ MAP + MAT + GDiv + ANPP + HumanDisturbance + N_Deposition, data=doms, Hess=T)))
-p <- pnorm(abs(a[,"t value"]), lower.tail=F)*2
-b <- cbind(a, p)
+a <- (multinom(as.factor(mode_yr) ~ MAP * MAT * GDiv * ANPP * HumanDisturbance * N_Deposition, data=doms))
+
+coef <- summary(a)$coefficients
+coef
+
+stderr <- summary(a)$standard.errors
+stderr
+
+z <- coef/stderr
+p_values <- 2 * (1 - pnorm(abs(z)))
+p_values
 

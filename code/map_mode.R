@@ -29,6 +29,12 @@ write.csv(df_combined, "data_formatted/df_combined.csv", row.names=FALSE)
 saveRDS(df_combined, file = "data_formatted/df_combined.rds")
 
 
+ggplot(df_combined, aes(x = as.factor(mode_yr), y = N_Deposition)) +
+  geom_boxplot() +
+  coord_flip()
+
+
+
 
 # 
 # 

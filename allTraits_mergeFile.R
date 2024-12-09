@@ -90,38 +90,50 @@ totCover <- coverData %>%
   ungroup()
 
 richness <- coverData %>% 
-  group_by(site_code, project_name, community_type, block, plot_id, calendar_year) %>% 
-  summarize(richness_all=length(abundance)) %>% 
+  select(site_code, project_name, community_type, species) %>% 
+  unique() %>% 
+  group_by(site_code, project_name, community_type) %>% 
+  summarize(richness_all=length(species)) %>% 
   ungroup()  
 
-relCoverAll <- coverData %>% 
-  left_join(totCover) %>% 
-  mutate(rel_cover=100*(abundance/tot_cover)) %>% 
-  ungroup() %>%
-  left_join(richness) %>% 
-  left_join(allTraits)
+# relCoverAll <- coverData %>% 
+#   left_join(totCover) %>% 
+#   mutate(rel_cover=100*(abundance/tot_cover)) %>% 
+#   ungroup() %>%
+#   left_join(richness) %>% 
+#   left_join(allTraits)
 
-relCoverWide <- relCoverAll %>% 
-  select(site_code, project_name, community_type, block, plot_id, calendar_year, 
-         treatment, species, rel_cover) %>% 
-  group_by(site_code, project_name, community_type, block, plot_id, calendar_year,
-           treatment, species) %>%
-  summarise(length=length(rel_cover)) %>%
-  ungroup() %>%
-  pivot_wider(names_from=species, values_from=rel_cover, values_fill=0)
+# relCoverWide <- relCoverAll %>% 
+#   select(site_code, project_name, community_type, block, plot_id, calendar_year, 
+#          treatment, species, rel_cover) %>% 
+#   # group_by(site_code, project_name, community_type, block, plot_id, calendar_year,
+#   #          treatment, species) %>%
+#   # summarise(length=length(rel_cover)) %>%
+#   # ungroup() %>%
+#   pivot_wider(names_from=species, values_from=rel_cover, values_fill=0)
 
 
 
 
 ###proportion of species remaining if we remove NAs
 
-proportionSppRemain <- relCoverAll %>% 
-  filter(!is.na(LDMC)) %>% 
-  group_by(site_code, project_name, community_type, block, plot_id, calendar_year, richness_all) %>% 
-  summarise(richness_remaining=length(abundance)) %>% 
+codomNum <- df_grouped %>% 
   ungroup() %>% 
+  select(site_code, project_name, community_type, plot_id, calendar_year, num_codominants) %>% 
+  unique()
+
+proportionSppRemain <- relCoverAll %>%
+  left_join(df_grouped) %>% 
+  filter(num_codominants>1, num_codominants<4) %>% 
+  filter(!is.na(LDMC)) %>% 
+  select(site_code, project_name, community_type, species) %>% 
+  unique() %>% 
+  group_by(site_code, project_name, community_type) %>% 
+  summarise(richness_remaining=length(species)) %>% 
+  ungroup() %>% 
+  left_join(richness) %>% 
   mutate(prop_richness_remaining=richness_remaining/richness_all) %>% 
-  filter(prop_richness_remaining<0.7)
+  filter(prop_richness_remaining>0.5)
 
 hist(proportionSppRemain$prop_richness_remaining)
 
@@ -132,7 +144,7 @@ test <- proportionSppRemain %>%
 #cutoff of 70%, then we drop 365 experiments out of 550
 
 
-###percent cover that has traits- this might not be as relevant to our dendrograms
+### percent cover that has traits- this might not be as relevant to our dendrograms
 
 coverWithTraits <- relCoverAll %>% 
   filter(!is.na(LDMC)) %>% 

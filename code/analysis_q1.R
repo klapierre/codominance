@@ -48,7 +48,9 @@ summary()
 
 # Analyses #
 library(nnet, MASS)
-a <- multinom(factor(df_combined$mode_yr, levels = c(4,3,2,1)) ~ MAP * MAT * GDiv * ANPP * HumanDisturbance * N_Deposition , data=df_combined)
+a <- multinom(factor(df_combined$mode_yr,
+                     levels = c(4,3,2,1)) ~ MAP+GDiv+HumanDisturbance+N_Deposition+MAP*MAT*ANPP+GDiv*N_Deposition*HumanDisturbance ,
+              data=df_combined)
 stepAIC(a, direction = "backward")
 
 coef <- summary(a)$coefficients
@@ -65,7 +67,7 @@ exp(coef(a))
 
 head(round(fitted(a),2))
 
-
+ 
 # Mixcat ------------------------------------------------------------------
 library(mixcat)
 npmlt()

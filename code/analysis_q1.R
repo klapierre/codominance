@@ -40,7 +40,6 @@ ggplot(doms, aes(x=as.factor(mode_yr), y=N_Deposition))+
   geom_boxplot()+
   coord_flip()
 
-
 factors <-doms[,c(10,11,12,13,14,15)]
 chart.Correlation(factors, method = "spearman")
 
@@ -66,9 +65,3 @@ p_values
 exp(coef(a))
 
 head(round(fitted(a),2))
-
- 
-# Mixcat ------------------------------------------------------------------
-library(mixcat)
-npmlt()
-    

@@ -171,6 +171,12 @@ expInfo <- individualExperiments%>%
          trt_type)%>%
   unique()
 
+<<<<<<<< HEAD:code/codominance_drivers.R
+========
+sites <- expInfo %>% 
+  select(database, site_code) %>% 
+  unique()
+>>>>>>>> master:codominance_drivers.R
 
 #-----abundance cutoffs of codominance-----
 
@@ -237,7 +243,7 @@ filter3 <- allAbund %>%
   unique()
 
 filterMean <- rbind(filter1, filter3) %>% 
-  unique() %>%  #applying both filters removes 7232 data points (10.3%)
+  unique() %>%  #applying both filters removes 7232 data points (10.3%); applying a 30% filter to codom mean cover would drop a combined 20,004 points (28.6%)
   pivot_wider(names_from=drop, values_from=drop) %>% 
   mutate(remove=ifelse(c_borderline=='c_borderline' & a_drop=='a_drop', 1, 0)) %>% 
   filter(is.na(remove)) %>% 
@@ -249,6 +255,7 @@ filterMean <- rbind(filter1, filter3) %>%
   mutate(drop2=ifelse(is.na(a_drop), 'b_keep', a_drop)) %>% 
   mutate(site_proj_comm=paste(site_code, project_name, community_type, sep='_'))
 
+<<<<<<<< HEAD:code/codominance_drivers.R
 
 ## new code for codom question 1 (Ashley's edits)
 
@@ -334,11 +341,29 @@ practice <- df_yr_diff %>%
 # when treat_type = control Control G, is treat_type = other the same for final year
 
 mutate(treat_type = ifelse(!is.na(trt_type), trt_type, treatment)) 
+========
+#continuous codominance
+
+nutnetControls <- individualExperiments%>%
+  filter(database=='NutNet', treatment_year==0) #just pre-treatment for NutNet, so max number of plots can be included
+
+controlsIndExp <- individualExperiments%>%
+  filter(database %in% c('CoRRE', 'GEx'), trt_type=='control')%>% #control plots only
+  rbind(nutnetControls)
+
+continuous_codom <- full_join(controlsIndExp, filterMean) %>% 
+  filter(trt_type %in% c("control","Control")) %>% 
+  group_by(site_proj_comm, plot_id, calendar_year) %>% 
+  summarise(continuous_num = mean(num_codominants)) %>% 
+  group_by(site_proj_comm, plot_id) %>% 
+  summarise(mean_contin2 = )
+>>>>>>>> master:codominance_drivers.R
 
 
 
 
 
+<<<<<<<< HEAD:code/codominance_drivers.R
 # dont run unless needed- wait time >1hr 
 for(PROJ in 1:length(edit_vector)){
   ggplot(data=filter(df_edit2, site_proj_comm == edit_vector[PROJ]),
@@ -361,6 +386,8 @@ for(PROJ in 1:length(edit_vector)){
 
 #___end ashley's edits___________________________________________
 
+========
+>>>>>>>> master:codominance_drivers.R
 
 #plots for gut check
 site_proj_comm_vector <- unique(filterMean$site_proj_comm)

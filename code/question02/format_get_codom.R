@@ -4,7 +4,6 @@
 pacman::p_load(DescTools,
                tidyverse)
 
-
 # data --------------------------------------------------------------------
 
 df0 <- readRDS("data_formatted/df_grouped.rds") %>%
@@ -21,19 +20,16 @@ df_mode <- df0 %>%
            project_name, 
            community_type, 
            plot_id) %>% 
-  summarise(plotmode = Mode(num_codominants) %>% 
-              max(),
-            .groups = "drop") %>% 
-  group_by(site_code, 
-           project_name, 
-           community_type) %>% 
-  summarise(mode = Mode(plotmode) %>% 
+  summarise(mode = Mode(num_codominants) %>% 
               max(),
             .groups = "drop")
 
 ## - Get codominant species from each plot and year
 ## - Aggregating at higher levels is difficult
-## - QUESTION: we 
+## - QUESTIONS:
+##  - how do we treat plots with only one dominant species? (i.e., no functional distance) - drop for now
+##  - should "co-dominance" be co-occurring species in the same plot?
+##  - what should we do when we have > 3 co-dominance?
 df_codom <- df0 %>% 
   mutate(cutoff = ifelse(num_codominants < 4,
                          yes = num_codominants,
@@ -50,7 +46,28 @@ df_codom <- df0 %>%
            project_name,
            community_type,
            plot_id,
-           genus_species)
+           genus_species) %>% 
+  arrange(site_code, 
+          project_name, 
+          community_type, 
+          plot_id) %>% 
+  group_by(site_code,
+           project_name,
+           community_type,
+           plot_id) %>% 
+  mutate(n_sp = n_distinct(genus_species)) %>% 
+  ungroup()
+
+## test visualization - should be removed later
+df_codom %>% 
+  distinct(site_code, 
+           project_name, 
+           community_type,
+           plot_id,
+           n_sp) %>% 
+  ggplot(aes(x = n_sp)) +
+  geom_histogram(binwidth = 0.5) +
+  labs(x = "Number of co-dominant species (at least once in the observation period)")
 
 # #join to the starting df0
 # df_fix <- df0 %>%

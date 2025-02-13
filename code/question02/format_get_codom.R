@@ -6,16 +6,43 @@ pacman::p_load(DescTools,
 
 # data --------------------------------------------------------------------
 
-df0 <- readRDS("data_formatted/df_grouped.rds") %>%
-  ungroup()
+## - cleaned species keys
+## - need to confirm with Kim
+df_key_nutnet <- read_csv("data/nutnet/NutNet_clean_spp_names_20240710.csv",
+                          guess_max = 10000) %>% 
+  mutate(latin_name = ifelse(is.na(New.Species), 
+                             NA,
+                             paste(New.Genus, New.Species))) %>% 
+  select(genus_species = Taxon, 
+         latin_name)
 
+df_key_corre <- read_csv("data/corre/trykey_corre2_2021.csv") %>% 
+  select(genus_species,
+         latin_name = species_matched)
+
+df_key_gex <- read_csv("data/gex/gex_sppfam_final_10june2020.csv") %>% 
+  select(genus_species,
+         latin_name = clean_ejf)
+
+## - combine species keys across datasets
+df_key <-  bind_rows(df_key_nutnet,
+                     df_key_corre,
+                     df_key_gex) %>% 
+  distinct(genus_species,
+           latin_name)
+
+## - join df0
+df0 <- readRDS("data_formatted/df_grouped.rds") %>%
+  ungroup() %>% 
+  left_join(df_key,
+            by = "genus_species")
 
 # get mode ----------------------------------------------------------------
 
 ## DescTools::Mode() can return more than one value when there are ties
 ## take max() after DescTools::Mode() to make it a scalar
 ## QUESTION: does plot_id accounts for treatments? Are there any swap in treament within a given plot?
-df_mode <- df0 %>% 
+df_mode <- df0 %>%
   group_by(site_code,
            project_name, 
            community_type, 

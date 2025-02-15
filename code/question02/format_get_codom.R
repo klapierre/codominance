@@ -51,12 +51,8 @@ df_mode <- df0 %>%
               max(),
             .groups = "drop")
 
-## - Get codominant species from each plot and year
-## - Aggregating at higher levels is difficult
-## - QUESTIONS:
-##  - how do we treat plots with only one dominant species? (i.e., no functional distance) - drop for now
-##  - should "co-dominance" be co-occurring species in the same plot?
-##  - what should we do when we have > 3 co-dominance?
+## - retain only those of # codominance = 2 or 3
+## - get the most common pair/trio over time
 df_codom <- df0 %>% 
   mutate(cutoff = ifelse(num_codominants < 4,
                          yes = num_codominants,

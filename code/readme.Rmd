@@ -1,0 +1,36 @@
+---
+title: "readme"
+output: github_document
+date: "2025-02-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## README
+
+This is a README file for codominance project:
+
+```{r}
+library(tidyverse)
+df_file <- tibble(file = c("`code/analysis_q1.R`",
+                           "`code/format_data.R`",
+                           "`code/map_mode.R`",
+                           "`code/allTraits_mergeFile.R`",
+                           "`code/sample_gawdist`"),
+                  note = c("multinomial model relating # of codominance to envrionmental variables",
+                           "entry point of data formatting; combining all codominance data.",
+                           "generating source information for GIS",
+                           "getting all trait data together",
+                           "sample code for calculating dendrogram trait distance gawdist()"))
+
+
+```
+
+
+- analysis_q1: multinomial model relating # of codominance to envrionmental variables
+- format_data: entry point of data formatting; combining all codominance data.
+- map_mode: generating source information for GIS
+- allTraits_mergeFile: getting all trait data together
+- sample_gawdist: sample code for calculating dendrogram trait distance gawdist()
